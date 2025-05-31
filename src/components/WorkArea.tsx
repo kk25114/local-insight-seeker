@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -58,7 +57,7 @@ ${JSON.stringify(data, null, 2)}
 
       console.log("发送请求到 Grok API...");
       
-      // 调用Grok API - 使用正确的端点和格式
+      // 调用Grok API - 使用正确的端点和模型名称
       const response = await fetch('https://api.x.ai/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -76,7 +75,7 @@ ${JSON.stringify(data, null, 2)}
               content: analysisPrompt
             }
           ],
-          model: 'grok-beta',
+          model: 'grok-3-fast-beta',
           stream: false,
           temperature: 0.1
         }),
@@ -188,7 +187,7 @@ ${JSON.stringify(data, null, 2)}
           <CardHeader>
             <CardTitle className="flex items-center text-lg">
               <FileText className="h-5 w-5 mr-2" />
-              Grok API 配置
+              Grok API 配置 (使用 grok-3-fast-beta 模型)
             </CardTitle>
           </CardHeader>
           <CardContent>
