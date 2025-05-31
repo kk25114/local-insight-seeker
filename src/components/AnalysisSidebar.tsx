@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, { useState, useMemo } from 'react';
 import {
   Sidebar,
   SidebarContent,
@@ -97,16 +98,37 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
   selectedAnalysis, 
   onSelectAnalysis 
 }) => {
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // 过滤分析方法
+  const filteredCategories = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return analysisCategories;
+    }
+
+    const query = searchQuery.toLowerCase().trim();
+    
+    return analysisCategories.map(category => ({
+      ...category,
+      items: category.items.filter(item => 
+        item.title.toLowerCase().includes(query) ||
+        item.key.toLowerCase().includes(query)
+      )
+    })).filter(category => category.items.length > 0);
+  }, [searchQuery]);
+
   return (
     <Sidebar className="border-r border-gray-200">
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 flex-1">
             <Search className="h-4 w-4 text-gray-400" />
             <input 
               type="text" 
               placeholder="搜索方法" 
-              className="text-sm bg-transparent border-none outline-none flex-1"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="text-sm bg-transparent border-none outline-none flex-1 placeholder-gray-400"
             />
           </div>
           <SidebarTrigger className="h-6 w-6" />
@@ -114,32 +136,38 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
       </div>
       
       <SidebarContent className="px-2">
-        {analysisCategories.map((category) => (
-          <SidebarGroup key={category.label}>
-            <SidebarGroupLabel className="text-xs font-semibold text-gray-600 px-2 py-2">
-              {category.label}
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {category.items.map((item) => (
-                  <SidebarMenuItem key={item.key}>
-                    <SidebarMenuButton 
-                      onClick={() => onSelectAnalysis(item.key)}
-                      className={`w-full justify-start text-sm py-2 px-2 ${
-                        selectedAnalysis === item.key 
-                          ? 'bg-blue-100 text-blue-700' 
-                          : 'hover:bg-gray-100'
-                      }`}
-                    >
-                      <item.icon className="h-4 w-4 mr-2" />
-                      <span>{item.title}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        ))}
+        {filteredCategories.length === 0 ? (
+          <div className="p-4 text-center text-gray-500 text-sm">
+            未找到匹配的分析方法
+          </div>
+        ) : (
+          filteredCategories.map((category) => (
+            <SidebarGroup key={category.label}>
+              <SidebarGroupLabel className="text-xs font-semibold text-gray-600 px-2 py-2">
+                {category.label}
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {category.items.map((item) => (
+                    <SidebarMenuItem key={item.key}>
+                      <SidebarMenuButton 
+                        onClick={() => onSelectAnalysis(item.key)}
+                        className={`w-full justify-start text-sm py-2 px-2 ${
+                          selectedAnalysis === item.key 
+                            ? 'bg-blue-100 text-blue-700' 
+                            : 'hover:bg-gray-100'
+                        }`}
+                      >
+                        <item.icon className="h-4 w-4 mr-2" />
+                        <span>{item.title}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          ))
+        )}
       </SidebarContent>
     </Sidebar>
   );
