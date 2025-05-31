@@ -1,13 +1,30 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import React, { useState } from 'react';
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { AnalysisSidebar } from '@/components/AnalysisSidebar';
+import { MainHeader } from '@/components/MainHeader';
+import { WorkArea } from '@/components/WorkArea';
 
 const Index = () => {
+  const [selectedAnalysis, setSelectedAnalysis] = useState<string>('');
+  const [uploadedData, setUploadedData] = useState<any[]>([]);
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full bg-gray-50">
+        <AnalysisSidebar 
+          selectedAnalysis={selectedAnalysis}
+          onSelectAnalysis={setSelectedAnalysis}
+        />
+        <div className="flex-1 flex flex-col">
+          <MainHeader onDataUpload={setUploadedData} />
+          <WorkArea 
+            selectedAnalysis={selectedAnalysis}
+            data={uploadedData}
+          />
+        </div>
       </div>
-    </div>
+    </SidebarProvider>
   );
 };
 
