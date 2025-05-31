@@ -1,4 +1,3 @@
-
 import React from 'react';
 import {
   Sidebar,
@@ -15,7 +14,7 @@ import {
   BarChart3, 
   TrendingUp, 
   PieChart, 
-  Scatter, 
+  ScatterChart, 
   GitBranch,
   Calculator,
   Database,
@@ -37,7 +36,7 @@ const analysisCategories = [
       { title: "分类汇总", icon: PieChart, key: "crosstab" },
       { title: "描述", icon: FileText, key: "descriptives" },
       { title: "交叉(列联)", icon: GitBranch, key: "crosstab" },
-      { title: "相关", icon: Scatter, key: "correlation" },
+      { title: "相关", icon: ScatterChart, key: "correlation" },
       { title: "线性回归", icon: TrendingUp, key: "regression" },
       { title: "方差", icon: Calculator, key: "anova" },
       { title: "独立性检验", icon: MoreHorizontal, key: "independence" }
@@ -82,7 +81,7 @@ const analysisCategories = [
     label: "综合评价",
     items: [
       { title: "层次分析法", icon: GitBranch, key: "ahp" },
-      { title: "主成分分析", icon: Scatter, key: "pca" }
+      { title: "主成分分析", icon: ScatterChart, key: "pca" }
     ]
   },
   {
