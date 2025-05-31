@@ -21,7 +21,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, data }) =>
   const { toast } = useToast();
 
   const runAnalysis = async () => {
-    if (!grokApiKey) {
+    if (!grokApiKey.trim()) {
       toast({
         title: "请输入Grok API密钥",
         description: "需要Grok API密钥来进行数据分析",
@@ -41,6 +41,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, data }) =>
 
     setIsAnalyzing(true);
     console.log("开始分析:", selectedAnalysis);
+    console.log("API Key length:", grokApiKey.length);
 
     try {
       // 构建分析请求
@@ -55,11 +56,13 @@ ${JSON.stringify(data, null, 2)}
 3. 数据解读和建议
 4. 可视化建议`;
 
-      // 调用Grok API
+      console.log("发送请求到 Grok API...");
+      
+      // 调用Grok API - 使用正确的端点和格式
       const response = await fetch('https://api.x.ai/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${grokApiKey}`,
+          'Authorization': `Bearer ${grokApiKey.trim()}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -79,12 +82,19 @@ ${JSON.stringify(data, null, 2)}
         }),
       });
 
+      console.log("Response status:", response.status);
+      console.log("Response headers:", response.headers);
+
       if (!response.ok) {
-        throw new Error(`API请求失败: ${response.statusText}`);
+        const errorText = await response.text();
+        console.error("API错误响应:", errorText);
+        throw new Error(`API请求失败: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
       const result = await response.json();
-      const analysisResult = result.choices[0]?.message?.content || '分析完成，但未收到结果';
+      console.log("API响应:", result);
+      
+      const analysisResult = result.choices?.[0]?.message?.content || '分析完成，但未收到结果';
       
       setAnalysisResults(analysisResult);
       toast({
@@ -93,9 +103,25 @@ ${JSON.stringify(data, null, 2)}
       });
     } catch (error) {
       console.error('分析错误:', error);
+      
+      let errorMessage = "请检查API密钥和网络连接";
+      if (error instanceof Error) {
+        if (error.message.includes('401')) {
+          errorMessage = "API密钥无效，请检查密钥是否正确";
+        } else if (error.message.includes('403')) {
+          errorMessage = "API密钥权限不足或已过期";
+        } else if (error.message.includes('429')) {
+          errorMessage = "API调用次数超限，请稍后重试";
+        } else if (error.message.includes('500')) {
+          errorMessage = "服务器错误，请稍后重试";
+        } else if (error.message.includes('fetch')) {
+          errorMessage = "网络连接失败，请检查网络";
+        }
+      }
+      
       toast({
         title: "分析失败",
-        description: "请检查API密钥和网络连接",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -172,13 +198,13 @@ ${JSON.stringify(data, null, 2)}
                 <Input
                   id="apiKey"
                   type="password"
-                  placeholder="请输入您的Grok API密钥"
+                  placeholder="请输入您的Grok API密钥 (xai-...)"
                   value={grokApiKey}
                   onChange={(e) => setGrokApiKey(e.target.value)}
                   className="mt-1"
                 />
                 <p className="text-sm text-gray-500 mt-1">
-                  您的API密钥将仅在本地使用，不会被保存或传输到其他地方
+                  您的API密钥将仅在本地使用，不会被保存或传输到其他地方。密钥格式应为: xai-xxxxxxxxxx
                 </p>
               </div>
             </div>
@@ -225,7 +251,7 @@ ${JSON.stringify(data, null, 2)}
                 )}
               </div>
             </CardContent>
-          </Card>
+        </Card>
         )}
 
         {/* 分析设置 */}
