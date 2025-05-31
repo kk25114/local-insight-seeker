@@ -121,7 +121,7 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
     <Sidebar className="border-r border-gray-200">
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2 flex-1">
+          <div className="flex items-center space-x-2 flex-1 group-data-[collapsible=icon]:hidden">
             <Search className="h-4 w-4 text-gray-400" />
             <input 
               type="text" 
@@ -137,7 +137,7 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
       
       <SidebarContent className="px-2">
         {filteredCategories.length === 0 ? (
-          <div className="p-4 text-center text-gray-500 text-sm">
+          <div className="p-4 text-center text-gray-500 text-sm group-data-[collapsible=icon]:hidden">
             未找到匹配的分析方法
           </div>
         ) : (
