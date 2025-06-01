@@ -93,6 +93,39 @@ serve(async (req) => {
         JSON.stringify({ content: result.content[0]?.text || '分析完成但未收到结果' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
+    } else if (provider === 'xai') {
+      response = await fetch('https://api.x.ai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: model_id,
+          messages: [
+            {
+              role: 'system',
+              content: '你是一个专业的统计分析师，擅长使用SPSS和其他统计软件进行数据分析。请提供详细、准确的统计分析结果。'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature: 0.1
+        }),
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`xAI API 错误: ${response.status} - ${errorText}`)
+      }
+
+      result = await response.json()
+      return new Response(
+        JSON.stringify({ content: result.choices[0]?.message?.content || '分析完成但未收到结果' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     } else {
       throw new Error(`不支持的AI提供商: ${provider}`)
     }

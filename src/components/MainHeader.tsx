@@ -2,7 +2,7 @@
 import React, { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Upload, Play, FileText, Database, Settings, User, Bell, LogOut, Cog } from 'lucide-react';
+import { Upload, Play, FileText, Database, Settings, User, Bell, LogOut, Cog, GitBranch } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { supabase } from '@/integrations/supabase/client';
@@ -12,9 +12,11 @@ import type { User as SupabaseUser } from '@supabase/supabase-js';
 interface MainHeaderProps {
   onDataUpload: (data: any[]) => void;
   user: SupabaseUser;
+  currentView: 'analysis' | 'algorithms' | 'models';
+  onViewChange: (view: 'analysis' | 'algorithms' | 'models') => void;
 }
 
-export const MainHeader: React.FC<MainHeaderProps> = ({ onDataUpload, user }) => {
+export const MainHeader: React.FC<MainHeaderProps> = ({ onDataUpload, user, currentView, onViewChange }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -64,33 +66,48 @@ export const MainHeader: React.FC<MainHeaderProps> = ({ onDataUpload, user }) =>
     }
   };
 
+  const getViewTitle = () => {
+    switch (currentView) {
+      case 'algorithms':
+        return '算法管理';
+      case 'models':
+        return '模型管理';
+      default:
+        return 'SPSSAI';
+    }
+  };
+
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <SidebarTrigger />
-          <h1 className="text-xl font-bold text-blue-600">SPSSAI</h1>
+          {currentView === 'analysis' && <SidebarTrigger />}
+          <h1 className="text-xl font-bold text-blue-600">{getViewTitle()}</h1>
           <span className="text-sm text-gray-500">统计科学 — 点就好</span>
         </div>
         
         <div className="flex items-center space-x-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center space-x-2"
-          >
-            <Upload className="h-4 w-4" />
-            <span>上传数据</span>
-          </Button>
-          
-          <Button
-            size="sm"
-            className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700"
-          >
-            <Play className="h-4 w-4" />
-            <span>开始分析</span>
-          </Button>
+          {currentView === 'analysis' && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center space-x-2"
+              >
+                <Upload className="h-4 w-4" />
+                <span>上传数据</span>
+              </Button>
+              
+              <Button
+                size="sm"
+                className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700"
+              >
+                <Play className="h-4 w-4" />
+                <span>开始分析</span>
+              </Button>
+            </>
+          )}
           
           <div className="flex items-center space-x-2 text-sm text-gray-600">
             <Bell className="h-4 w-4 cursor-pointer hover:text-blue-600" />
@@ -102,6 +119,19 @@ export const MainHeader: React.FC<MainHeaderProps> = ({ onDataUpload, user }) =>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => onViewChange('analysis')}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  <span>数据分析</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onViewChange('algorithms')}>
+                  <GitBranch className="h-4 w-4 mr-2" />
+                  <span>算法管理</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onViewChange('models')}>
+                  <Cog className="h-4 w-4 mr-2" />
+                  <span>模型管理</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem>
                   <Settings className="h-4 w-4 mr-2" />
                   <span>设置</span>
@@ -109,10 +139,6 @@ export const MainHeader: React.FC<MainHeaderProps> = ({ onDataUpload, user }) =>
                 <DropdownMenuItem>
                   <Database className="h-4 w-4 mr-2" />
                   <span>数据管理</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Cog className="h-4 w-4 mr-2" />
-                  <span>算法管理</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut}>
