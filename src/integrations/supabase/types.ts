@@ -9,7 +9,99 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      ai_models: {
+        Row: {
+          api_key_name: string
+          created_at: string
+          id: string
+          is_active: boolean | null
+          model_id: string
+          name: string
+          provider: string
+          updated_at: string
+        }
+        Insert: {
+          api_key_name: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          model_id: string
+          name: string
+          provider: string
+          updated_at?: string
+        }
+        Update: {
+          api_key_name?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          model_id?: string
+          name?: string
+          provider?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      analysis_algorithms: {
+        Row: {
+          category: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          parameters: Json | null
+          prompt_template: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          parameters?: Json | null
+          prompt_template: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          parameters?: Json | null
+          prompt_template?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          role: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id: string
+          role?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          role?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

@@ -2,15 +2,19 @@
 import React, { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Upload, Play, FileText, Database, Settings, User, Bell } from 'lucide-react';
+import { Upload, Play, FileText, Database, Settings, User, Bell, LogOut, Cog } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { supabase } from '@/integrations/supabase/client';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 interface MainHeaderProps {
   onDataUpload: (data: any[]) => void;
+  user: SupabaseUser;
 }
 
-export const MainHeader: React.FC<MainHeaderProps> = ({ onDataUpload }) => {
+export const MainHeader: React.FC<MainHeaderProps> = ({ onDataUpload, user }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -20,7 +24,6 @@ export const MainHeader: React.FC<MainHeaderProps> = ({ onDataUpload }) => {
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
-          // 这里可以处理CSV、JSON等格式的数据
           console.log('文件上传成功:', file.name);
           toast({
             title: "文件上传成功",
@@ -42,6 +45,22 @@ export const MainHeader: React.FC<MainHeaderProps> = ({ onDataUpload }) => {
         }
       };
       reader.readAsText(file);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      toast({
+        title: "已退出登录",
+        description: "您已成功退出系统",
+      });
+    } catch (error) {
+      toast({
+        title: "退出失败",
+        description: "退出登录时出现错误",
+        variant: "destructive",
+      });
     }
   };
 
@@ -75,11 +94,33 @@ export const MainHeader: React.FC<MainHeaderProps> = ({ onDataUpload }) => {
           
           <div className="flex items-center space-x-2 text-sm text-gray-600">
             <Bell className="h-4 w-4 cursor-pointer hover:text-blue-600" />
-            <Settings className="h-4 w-4 cursor-pointer hover:text-blue-600" />
-            <span className="cursor-pointer hover:text-blue-600">客服中心</span>
-            <span className="cursor-pointer hover:text-blue-600">我的数据</span>
-            <span className="cursor-pointer hover:text-blue-600">查看数据</span>
-            <User className="h-4 w-4 cursor-pointer hover:text-blue-600" />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="flex items-center space-x-2">
+                  <User className="h-4 w-4" />
+                  <span>{user.email}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem>
+                  <Settings className="h-4 w-4 mr-2" />
+                  <span>设置</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <Database className="h-4 w-4 mr-2" />
+                  <span>数据管理</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <Cog className="h-4 w-4 mr-2" />
+                  <span>算法管理</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSignOut}>
+                  <LogOut className="h-4 w-4 mr-2" />
+                  <span>退出登录</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>

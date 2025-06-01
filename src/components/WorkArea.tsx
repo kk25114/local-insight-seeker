@@ -1,29 +1,95 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PlayCircle, FileText, BarChart3 } from 'lucide-react';
+import { PlayCircle, FileText, BarChart3, Settings } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import type { User } from '@supabase/supabase-js';
 
 interface WorkAreaProps {
   selectedAnalysis: string;
   data: any[];
+  user: User;
 }
 
-export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, data }) => {
+interface AIModel {
+  id: string;
+  name: string;
+  provider: string;
+  model_id: string;
+  api_key_name: string;
+  is_active: boolean;
+}
+
+interface AnalysisAlgorithm {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  prompt_template: string;
+  parameters: any;
+}
+
+export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, data, user }) => {
   const [analysisResults, setAnalysisResults] = useState<string>('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [grokApiKey, setGrokApiKey] = useState('');
+  const [selectedModel, setSelectedModel] = useState<string>('');
+  const [aiModels, setAiModels] = useState<AIModel[]>([]);
+  const [algorithms, setAlgorithms] = useState<AnalysisAlgorithm[]>([]);
   const { toast } = useToast();
 
-  const runAnalysis = async () => {
-    if (!grokApiKey.trim()) {
+  useEffect(() => {
+    loadAIModels();
+    loadAlgorithms();
+  }, []);
+
+  const loadAIModels = async () => {
+    try {
+      const { data: models, error } = await supabase
+        .from('ai_models')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
+
+      if (error) throw error;
+      setAiModels(models || []);
+      if (models && models.length > 0) {
+        setSelectedModel(models[0].id);
+      }
+    } catch (error) {
+      console.error('加载模型失败:', error);
       toast({
-        title: "请输入Grok API密钥",
-        description: "需要Grok API密钥来进行数据分析",
+        title: "加载模型失败",
+        description: "无法获取可用的AI模型",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const loadAlgorithms = async () => {
+    try {
+      const { data: algos, error } = await supabase
+        .from('analysis_algorithms')
+        .select('*')
+        .order('category', { ascending: true })
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+      setAlgorithms(algos || []);
+    } catch (error) {
+      console.error('加载算法失败:', error);
+    }
+  };
+
+  const runAnalysis = async () => {
+    if (!selectedModel) {
+      toast({
+        title: "请选择AI模型",
+        description: "需要选择一个AI模型来进行数据分析",
         variant: "destructive",
       });
       return;
@@ -40,60 +106,44 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, data }) =>
 
     setIsAnalyzing(true);
     console.log("开始分析:", selectedAnalysis);
-    console.log("API Key length:", grokApiKey.length);
 
     try {
-      // 构建分析请求
-      const analysisPrompt = `请对以下数据进行${getAnalysisName(selectedAnalysis)}分析：
+      // 获取选中的算法
+      const algorithm = algorithms.find(algo => 
+        algo.name === getAnalysisName(selectedAnalysis)
+      );
       
-数据：
-${JSON.stringify(data, null, 2)}
-
-请提供详细的统计分析结果，包括：
-1. 描述性统计
-2. 假设检验结果（如适用）
-3. 数据解读和建议
-4. 可视化建议`;
-
-      console.log("发送请求到 Grok API...");
-      
-      // 调用Grok API - 使用正确的端点和模型名称
-      const response = await fetch('https://api.x.ai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${grokApiKey.trim()}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messages: [
-            {
-              role: 'system',
-              content: '你是一个专业的统计分析师，擅长使用SPSS和其他统计软件进行数据分析。请提供详细、准确的统计分析结果。'
-            },
-            {
-              role: 'user',
-              content: analysisPrompt
-            }
-          ],
-          model: 'grok-3-fast-beta',
-          stream: false,
-          temperature: 0.1
-        }),
-      });
-
-      console.log("Response status:", response.status);
-      console.log("Response headers:", response.headers);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("API错误响应:", errorText);
-        throw new Error(`API请求失败: ${response.status} ${response.statusText} - ${errorText}`);
+      if (!algorithm) {
+        throw new Error('未找到对应的分析算法');
       }
 
-      const result = await response.json();
-      console.log("API响应:", result);
+      // 获取选中的模型信息
+      const model = aiModels.find(m => m.id === selectedModel);
+      if (!model) {
+        throw new Error('未找到对应的AI模型');
+      }
+
+      // 构建分析请求，使用数据库中的prompt模板
+      const analysisPrompt = algorithm.prompt_template.replace('{data}', JSON.stringify(data, null, 2));
+
+      console.log("使用模型:", model.name);
+      console.log("使用算法:", algorithm.name);
       
-      const analysisResult = result.choices?.[0]?.message?.content || '分析完成，但未收到结果';
+      // 调用后端Edge Function进行分析
+      const { data: result, error } = await supabase.functions.invoke('analyze-data', {
+        body: {
+          prompt: analysisPrompt,
+          model_id: model.model_id,
+          provider: model.provider,
+          api_key_name: model.api_key_name
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+      
+      const analysisResult = result?.content || '分析完成，但未收到结果';
       
       setAnalysisResults(analysisResult);
       toast({
@@ -103,19 +153,9 @@ ${JSON.stringify(data, null, 2)}
     } catch (error) {
       console.error('分析错误:', error);
       
-      let errorMessage = "请检查API密钥和网络连接";
+      let errorMessage = "分析过程中出现错误";
       if (error instanceof Error) {
-        if (error.message.includes('401')) {
-          errorMessage = "API密钥无效，请检查密钥是否正确";
-        } else if (error.message.includes('403')) {
-          errorMessage = "API密钥权限不足或已过期";
-        } else if (error.message.includes('429')) {
-          errorMessage = "API调用次数超限，请稍后重试";
-        } else if (error.message.includes('500')) {
-          errorMessage = "服务器错误，请稍后重试";
-        } else if (error.message.includes('fetch')) {
-          errorMessage = "网络连接失败，请检查网络";
-        }
+        errorMessage = error.message;
       }
       
       toast({
@@ -130,9 +170,9 @@ ${JSON.stringify(data, null, 2)}
 
   const getAnalysisName = (key: string) => {
     const names: { [key: string]: string } = {
-      frequency: '频数',
+      frequency: '频数分析',
       descriptives: '描述性统计',
-      correlation: '相关性',
+      correlation: '相关分析',
       regression: '线性回归',
       ttest: 'T检验',
       anova: '方差分析',
@@ -140,7 +180,7 @@ ${JSON.stringify(data, null, 2)}
       reliability: '信度分析',
       factor: '因子分析'
     };
-    return names[key] || '统计';
+    return names[key] || '统计分析';
   };
 
   return (
@@ -182,28 +222,32 @@ ${JSON.stringify(data, null, 2)}
           </Button>
         </div>
 
-        {/* API配置 */}
+        {/* AI模型选择 */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center text-lg">
-              <FileText className="h-5 w-5 mr-2" />
-              Grok API 配置 (使用 grok-3-fast-beta 模型)
+              <Settings className="h-5 w-5 mr-2" />
+              AI 模型配置
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="apiKey">Grok API 密钥</Label>
-                <Input
-                  id="apiKey"
-                  type="password"
-                  placeholder="请输入您的Grok API密钥 (xai-...)"
-                  value={grokApiKey}
-                  onChange={(e) => setGrokApiKey(e.target.value)}
-                  className="mt-1"
-                />
+                <Label htmlFor="aiModel">选择AI模型</Label>
+                <Select value={selectedModel} onValueChange={setSelectedModel}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="选择AI模型" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {aiModels.map((model) => (
+                      <SelectItem key={model.id} value={model.id}>
+                        {model.name} ({model.provider})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <p className="text-sm text-gray-500 mt-1">
-                  您的API密钥将仅在本地使用，不会被保存或传输到其他地方。密钥格式应为: xai-xxxxxxxxxx
+                  AI模型由管理员统一配置和管理
                 </p>
               </div>
             </div>
