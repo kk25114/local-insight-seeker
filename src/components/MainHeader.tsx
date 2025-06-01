@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Upload, Play, FileText, Database, Settings, User, Bell } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { SidebarTrigger } from "@/components/ui/sidebar";
 
 interface MainHeaderProps {
   onDataUpload: (data: any[]) => void;
@@ -48,9 +49,9 @@ export const MainHeader: React.FC<MainHeaderProps> = ({ onDataUpload }) => {
     <header className="bg-white border-b border-gray-200 px-6 py-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
+          <SidebarTrigger />
           <h1 className="text-xl font-bold text-blue-600">SPSSAI</h1>
           <span className="text-sm text-gray-500">统计科学 — 点就好</span>
-          <span className="text-sm text-blue-600 cursor-pointer hover:underline">国际站</span>
         </div>
         
         <div className="flex items-center space-x-4">

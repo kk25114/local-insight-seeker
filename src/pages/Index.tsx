@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AnalysisSidebar } from '@/components/AnalysisSidebar';
 import { MainHeader } from '@/components/MainHeader';
 import { WorkArea } from '@/components/WorkArea';
@@ -16,13 +16,13 @@ const Index = () => {
           selectedAnalysis={selectedAnalysis}
           onSelectAnalysis={setSelectedAnalysis}
         />
-        <div className="flex-1 flex flex-col">
+        <SidebarInset>
           <MainHeader onDataUpload={setUploadedData} />
           <WorkArea 
             selectedAnalysis={selectedAnalysis}
             data={uploadedData}
           />
-        </div>
+        </SidebarInset>
       </div>
     </SidebarProvider>
   );
