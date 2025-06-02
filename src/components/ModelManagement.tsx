@@ -29,6 +29,7 @@ export const ModelManagement: React.FC<ModelManagementProps> = ({ user }) => {
   const [models, setModels] = useState<AIModel[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingModel, setEditingModel] = useState<AIModel | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -37,12 +38,18 @@ export const ModelManagement: React.FC<ModelManagementProps> = ({ user }) => {
 
   const loadModels = async () => {
     try {
+      setIsLoading(true);
       const { data, error } = await supabase
         .from('ai_models')
         .select('*')
         .order('name', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+      
+      console.log('Loaded models:', data);
       setModels(data || []);
     } catch (error) {
       console.error('加载模型失败:', error);
@@ -51,6 +58,8 @@ export const ModelManagement: React.FC<ModelManagementProps> = ({ user }) => {
         description: "无法获取模型列表",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -119,6 +128,11 @@ export const ModelManagement: React.FC<ModelManagementProps> = ({ user }) => {
     setEditingModel(null);
   };
 
+  const handleNewModel = () => {
+    setEditingModel(null);
+    setIsDialogOpen(true);
+  };
+
   // 添加您指定的 Grok 模型
   const addGrokModel = async () => {
     try {
@@ -162,7 +176,7 @@ export const ModelManagement: React.FC<ModelManagementProps> = ({ user }) => {
           </Button>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button onClick={() => { setEditingModel(null); setIsDialogOpen(true); }}>
+              <Button onClick={handleNewModel}>
                 <Plus className="h-4 w-4 mr-2" />
                 新增模型
               </Button>
@@ -185,55 +199,66 @@ export const ModelManagement: React.FC<ModelManagementProps> = ({ user }) => {
 
       <Card>
         <CardHeader>
-          <CardTitle>模型列表</CardTitle>
+          <CardTitle>模型列表 ({models.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>名称</TableHead>
-                <TableHead>提供商</TableHead>
-                <TableHead>模型ID</TableHead>
-                <TableHead>API密钥</TableHead>
-                <TableHead>状态</TableHead>
-                <TableHead>操作</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {models.map((model) => (
-                <TableRow key={model.id}>
-                  <TableCell className="font-medium">{model.name}</TableCell>
-                  <TableCell>{model.provider}</TableCell>
-                  <TableCell>{model.model_id}</TableCell>
-                  <TableCell>{model.api_key_name}</TableCell>
-                  <TableCell>
-                    <Switch
-                      checked={model.is_active}
-                      onCheckedChange={() => toggleActive(model.id, model.is_active)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEdit(model)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDelete(model.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          {isLoading ? (
+            <div className="text-center py-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-2 text-gray-600">加载中...</p>
+            </div>
+          ) : models.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500">暂无模型，点击上方按钮添加新模型</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>名称</TableHead>
+                  <TableHead>提供商</TableHead>
+                  <TableHead>模型ID</TableHead>
+                  <TableHead>API密钥</TableHead>
+                  <TableHead>状态</TableHead>
+                  <TableHead>操作</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {models.map((model) => (
+                  <TableRow key={model.id}>
+                    <TableCell className="font-medium">{model.name}</TableCell>
+                    <TableCell>{model.provider}</TableCell>
+                    <TableCell>{model.model_id}</TableCell>
+                    <TableCell>{model.api_key_name}</TableCell>
+                    <TableCell>
+                      <Switch
+                        checked={model.is_active}
+                        onCheckedChange={() => toggleActive(model.id, model.is_active)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEdit(model)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDelete(model.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>

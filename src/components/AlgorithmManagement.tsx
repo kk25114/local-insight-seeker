@@ -28,6 +28,7 @@ export const AlgorithmManagement: React.FC<AlgorithmManagementProps> = ({ user }
   const [algorithms, setAlgorithms] = useState<Algorithm[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingAlgorithm, setEditingAlgorithm] = useState<Algorithm | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -36,13 +37,19 @@ export const AlgorithmManagement: React.FC<AlgorithmManagementProps> = ({ user }
 
   const loadAlgorithms = async () => {
     try {
+      setIsLoading(true);
       const { data, error } = await supabase
         .from('analysis_algorithms')
         .select('*')
         .order('category', { ascending: true })
         .order('name', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+      
+      console.log('Loaded algorithms:', data);
       setAlgorithms(data || []);
     } catch (error) {
       console.error('加载算法失败:', error);
@@ -51,6 +58,8 @@ export const AlgorithmManagement: React.FC<AlgorithmManagementProps> = ({ user }
         description: "无法获取算法列表",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -96,6 +105,11 @@ export const AlgorithmManagement: React.FC<AlgorithmManagementProps> = ({ user }
     setEditingAlgorithm(null);
   };
 
+  const handleNewAlgorithm = () => {
+    setEditingAlgorithm(null);
+    setIsDialogOpen(true);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -105,7 +119,7 @@ export const AlgorithmManagement: React.FC<AlgorithmManagementProps> = ({ user }
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => { setEditingAlgorithm(null); setIsDialogOpen(true); }}>
+            <Button onClick={handleNewAlgorithm}>
               <Plus className="h-4 w-4 mr-2" />
               新增算法
             </Button>
@@ -128,50 +142,61 @@ export const AlgorithmManagement: React.FC<AlgorithmManagementProps> = ({ user }
 
       <Card>
         <CardHeader>
-          <CardTitle>算法列表</CardTitle>
+          <CardTitle>算法列表 ({algorithms.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>名称</TableHead>
-                <TableHead>分类</TableHead>
-                <TableHead>描述</TableHead>
-                <TableHead>创建时间</TableHead>
-                <TableHead>操作</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {algorithms.map((algorithm) => (
-                <TableRow key={algorithm.id}>
-                  <TableCell className="font-medium">{algorithm.name}</TableCell>
-                  <TableCell>{algorithm.category}</TableCell>
-                  <TableCell>{algorithm.description}</TableCell>
-                  <TableCell>
-                    {new Date(algorithm.created_at).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEdit(algorithm)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDelete(algorithm.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          {isLoading ? (
+            <div className="text-center py-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-2 text-gray-600">加载中...</p>
+            </div>
+          ) : algorithms.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500">暂无算法，点击上方按钮添加新算法</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>名称</TableHead>
+                  <TableHead>分类</TableHead>
+                  <TableHead>描述</TableHead>
+                  <TableHead>创建时间</TableHead>
+                  <TableHead>操作</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {algorithms.map((algorithm) => (
+                  <TableRow key={algorithm.id}>
+                    <TableCell className="font-medium">{algorithm.name}</TableCell>
+                    <TableCell>{algorithm.category}</TableCell>
+                    <TableCell>{algorithm.description || '无描述'}</TableCell>
+                    <TableCell>
+                      {new Date(algorithm.created_at).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEdit(algorithm)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDelete(algorithm.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>
