@@ -2,15 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { Plus, Edit, Trash2, Settings } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { ModelForm } from './ModelForm';
 import type { User } from '@supabase/supabase-js';
 
 interface AIModel {
@@ -31,28 +29,7 @@ export const ModelManagement: React.FC<ModelManagementProps> = ({ user }) => {
   const [models, setModels] = useState<AIModel[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingModel, setEditingModel] = useState<AIModel | null>(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    provider: '',
-    model_id: '',
-    api_key_name: '',
-    is_active: true,
-  });
   const { toast } = useToast();
-
-  const providers = [
-    { value: 'openai', label: 'OpenAI' },
-    { value: 'anthropic', label: 'Anthropic' },
-    { value: 'xai', label: 'xAI (Grok)' },
-    { value: 'google', label: 'Google' },
-  ];
-
-  const apiKeyOptions = [
-    { value: 'OPENAI_API_KEY', label: 'OPENAI_API_KEY' },
-    { value: 'ANTHROPIC_API_KEY', label: 'ANTHROPIC_API_KEY' },
-    { value: 'XAI_API_KEY', label: 'XAI_API_KEY' },
-    { value: 'GOOGLE_API_KEY', label: 'GOOGLE_API_KEY' },
-  ];
 
   useEffect(() => {
     loadModels();
@@ -72,65 +49,6 @@ export const ModelManagement: React.FC<ModelManagementProps> = ({ user }) => {
       toast({
         title: "加载失败",
         description: "无法获取模型列表",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleSave = async () => {
-    if (!formData.name || !formData.provider || !formData.model_id || !formData.api_key_name) {
-      toast({
-        title: "请填写完整信息",
-        description: "所有字段都是必填项",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      if (editingModel) {
-        const { error } = await supabase
-          .from('ai_models')
-          .update({
-            name: formData.name,
-            provider: formData.provider,
-            model_id: formData.model_id,
-            api_key_name: formData.api_key_name,
-            is_active: formData.is_active,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', editingModel.id);
-
-        if (error) throw error;
-        toast({
-          title: "更新成功",
-          description: "模型已成功更新",
-        });
-      } else {
-        const { error } = await supabase
-          .from('ai_models')
-          .insert({
-            name: formData.name,
-            provider: formData.provider,
-            model_id: formData.model_id,
-            api_key_name: formData.api_key_name,
-            is_active: formData.is_active,
-          });
-
-        if (error) throw error;
-        toast({
-          title: "创建成功",
-          description: "新模型已成功创建",
-        });
-      }
-
-      resetForm();
-      loadModels();
-    } catch (error) {
-      console.error('保存模型失败:', error);
-      toast({
-        title: "保存失败",
-        description: "保存模型时出现错误",
         variant: "destructive",
       });
     }
@@ -164,13 +82,6 @@ export const ModelManagement: React.FC<ModelManagementProps> = ({ user }) => {
 
   const handleEdit = (model: AIModel) => {
     setEditingModel(model);
-    setFormData({
-      name: model.name,
-      provider: model.provider,
-      model_id: model.model_id,
-      api_key_name: model.api_key_name,
-      is_active: model.is_active,
-    });
     setIsDialogOpen(true);
   };
 
@@ -197,16 +108,45 @@ export const ModelManagement: React.FC<ModelManagementProps> = ({ user }) => {
     }
   };
 
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      provider: '',
-      model_id: '',
-      api_key_name: '',
-      is_active: true,
-    });
-    setEditingModel(null);
+  const handleSave = () => {
     setIsDialogOpen(false);
+    setEditingModel(null);
+    loadModels();
+  };
+
+  const handleCancel = () => {
+    setIsDialogOpen(false);
+    setEditingModel(null);
+  };
+
+  // 添加您指定的 Grok 模型
+  const addGrokModel = async () => {
+    try {
+      const { error } = await supabase
+        .from('ai_models')
+        .insert({
+          name: 'Grok 3 Fast Beta',
+          provider: 'xai',
+          model_id: 'grok-3-fast-beta',
+          api_key_name: 'XAI_API_KEY',
+          is_active: true,
+        });
+
+      if (error) throw error;
+      
+      toast({
+        title: "添加成功",
+        description: "Grok 3 Fast Beta 模型已成功添加",
+      });
+      loadModels();
+    } catch (error) {
+      console.error('添加 Grok 模型失败:', error);
+      toast({
+        title: "添加失败",
+        description: "添加 Grok 模型时出现错误",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -216,87 +156,31 @@ export const ModelManagement: React.FC<ModelManagementProps> = ({ user }) => {
           <Settings className="h-6 w-6 text-blue-600" />
           <h1 className="text-2xl font-bold">模型管理</h1>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => resetForm()}>
-              <Plus className="h-4 w-4 mr-2" />
-              新增模型
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>
-                {editingModel ? '编辑模型' : '新增模型'}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="name">模型名称 *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="输入模型名称"
-                />
-              </div>
-              <div>
-                <Label htmlFor="provider">提供商 *</Label>
-                <Select value={formData.provider} onValueChange={(value) => setFormData({ ...formData, provider: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="选择提供商" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {providers.map((provider) => (
-                      <SelectItem key={provider.value} value={provider.value}>
-                        {provider.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="model_id">模型ID *</Label>
-                <Input
-                  id="model_id"
-                  value={formData.model_id}
-                  onChange={(e) => setFormData({ ...formData, model_id: e.target.value })}
-                  placeholder="例如: gpt-4o, claude-3, grok-beta"
-                />
-              </div>
-              <div>
-                <Label htmlFor="api_key_name">API密钥名称 *</Label>
-                <Select value={formData.api_key_name} onValueChange={(value) => setFormData({ ...formData, api_key_name: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="选择API密钥" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {apiKeyOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="is_active"
-                  checked={formData.is_active}
-                  onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
-                />
-                <Label htmlFor="is_active">启用模型</Label>
-              </div>
-              <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={resetForm}>
-                  取消
-                </Button>
-                <Button onClick={handleSave}>
-                  {editingModel ? '更新' : '创建'}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <div className="flex space-x-2">
+          <Button variant="outline" onClick={addGrokModel}>
+            快速添加 Grok 3 Fast Beta
+          </Button>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={() => { setEditingModel(null); setIsDialogOpen(true); }}>
+                <Plus className="h-4 w-4 mr-2" />
+                新增模型
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>
+                  {editingModel ? '编辑模型' : '新增模型'}
+                </DialogTitle>
+              </DialogHeader>
+              <ModelForm
+                model={editingModel}
+                onSave={handleSave}
+                onCancel={handleCancel}
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <Card>

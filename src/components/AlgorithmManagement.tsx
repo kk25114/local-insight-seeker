@@ -2,15 +2,12 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Plus, Edit, Trash2, GitBranch } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { AlgorithmForm } from './AlgorithmForm';
 import type { User } from '@supabase/supabase-js';
 
 interface Algorithm {
@@ -31,24 +28,7 @@ export const AlgorithmManagement: React.FC<AlgorithmManagementProps> = ({ user }
   const [algorithms, setAlgorithms] = useState<Algorithm[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingAlgorithm, setEditingAlgorithm] = useState<Algorithm | null>(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    category: '',
-    description: '',
-    prompt_template: '',
-  });
   const { toast } = useToast();
-
-  const categories = [
-    '通用方法',
-    '问卷研究',
-    '可视化',
-    '数据处理',
-    '进阶方法',
-    '实验/医学研究',
-    '综合评价',
-    '计量经济研究'
-  ];
 
   useEffect(() => {
     loadAlgorithms();
@@ -69,64 +49,6 @@ export const AlgorithmManagement: React.FC<AlgorithmManagementProps> = ({ user }
       toast({
         title: "加载失败",
         description: "无法获取算法列表",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleSave = async () => {
-    if (!formData.name || !formData.category || !formData.prompt_template) {
-      toast({
-        title: "请填写完整信息",
-        description: "名称、分类和提示模板都是必填项",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      if (editingAlgorithm) {
-        const { error } = await supabase
-          .from('analysis_algorithms')
-          .update({
-            name: formData.name,
-            category: formData.category,
-            description: formData.description,
-            prompt_template: formData.prompt_template,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', editingAlgorithm.id);
-
-        if (error) throw error;
-        toast({
-          title: "更新成功",
-          description: "算法已成功更新",
-        });
-      } else {
-        const { error } = await supabase
-          .from('analysis_algorithms')
-          .insert({
-            name: formData.name,
-            category: formData.category,
-            description: formData.description,
-            prompt_template: formData.prompt_template,
-            created_by: user.id,
-          });
-
-        if (error) throw error;
-        toast({
-          title: "创建成功",
-          description: "新算法已成功创建",
-        });
-      }
-
-      resetForm();
-      loadAlgorithms();
-    } catch (error) {
-      console.error('保存算法失败:', error);
-      toast({
-        title: "保存失败",
-        description: "保存算法时出现错误",
         variant: "destructive",
       });
     }
@@ -160,24 +82,18 @@ export const AlgorithmManagement: React.FC<AlgorithmManagementProps> = ({ user }
 
   const handleEdit = (algorithm: Algorithm) => {
     setEditingAlgorithm(algorithm);
-    setFormData({
-      name: algorithm.name,
-      category: algorithm.category,
-      description: algorithm.description || '',
-      prompt_template: algorithm.prompt_template,
-    });
     setIsDialogOpen(true);
   };
 
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      category: '',
-      description: '',
-      prompt_template: '',
-    });
-    setEditingAlgorithm(null);
+  const handleSave = () => {
     setIsDialogOpen(false);
+    setEditingAlgorithm(null);
+    loadAlgorithms();
+  };
+
+  const handleCancel = () => {
+    setIsDialogOpen(false);
+    setEditingAlgorithm(null);
   };
 
   return (
@@ -189,7 +105,7 @@ export const AlgorithmManagement: React.FC<AlgorithmManagementProps> = ({ user }
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => resetForm()}>
+            <Button onClick={() => { setEditingAlgorithm(null); setIsDialogOpen(true); }}>
               <Plus className="h-4 w-4 mr-2" />
               新增算法
             </Button>
@@ -200,62 +116,12 @@ export const AlgorithmManagement: React.FC<AlgorithmManagementProps> = ({ user }
                 {editingAlgorithm ? '编辑算法' : '新增算法'}
               </DialogTitle>
             </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="name">算法名称 *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="输入算法名称"
-                />
-              </div>
-              <div>
-                <Label htmlFor="category">分类 *</Label>
-                <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="选择分类" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {category}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="description">描述</Label>
-                <Input
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="输入算法描述"
-                />
-              </div>
-              <div>
-                <Label htmlFor="prompt_template">提示模板 *</Label>
-                <Textarea
-                  id="prompt_template"
-                  value={formData.prompt_template}
-                  onChange={(e) => setFormData({ ...formData, prompt_template: e.target.value })}
-                  placeholder="输入提示模板，使用 {data} 作为数据占位符"
-                  rows={6}
-                />
-                <p className="text-sm text-gray-500 mt-1">
-                  使用 {'{data}'} 作为数据占位符，系统会自动替换为实际数据
-                </p>
-              </div>
-              <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={resetForm}>
-                  取消
-                </Button>
-                <Button onClick={handleSave}>
-                  {editingAlgorithm ? '更新' : '创建'}
-                </Button>
-              </div>
-            </div>
+            <AlgorithmForm
+              user={user}
+              algorithm={editingAlgorithm}
+              onSave={handleSave}
+              onCancel={handleCancel}
+            />
           </DialogContent>
         </Dialog>
       </div>
