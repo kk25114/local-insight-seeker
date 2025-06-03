@@ -27,6 +27,8 @@ serve(async (req) => {
       throw new Error(`API密钥 ${api_key_name} 未配置`)
     }
 
+    console.log(`使用 ${provider} 提供商的 ${model_id} 模型进行分析`)
+
     let response
     let result
 
@@ -94,6 +96,9 @@ serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     } else if (provider === 'xai') {
+      // 使用 grok-3-fast 模型
+      const grokModel = model_id === 'grok-3-fast' ? 'grok-beta' : model_id;
+      
       response = await fetch('https://api.x.ai/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -101,11 +106,11 @@ serve(async (req) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: model_id,
+          model: grokModel,
           messages: [
             {
               role: 'system',
-              content: '你是一个专业的统计分析师，擅长使用SPSS和其他统计软件进行数据分析。请提供详细、准确的统计分析结果。'
+              content: '你是一个专业的统计分析师和AI助手，擅长使用SPSS和其他统计软件进行数据分析。请提供详细、准确且易于理解的分析结果和建议。'
             },
             {
               role: 'user',
@@ -118,6 +123,7 @@ serve(async (req) => {
 
       if (!response.ok) {
         const errorText = await response.text()
+        console.error(`xAI API 错误: ${response.status} - ${errorText}`)
         throw new Error(`xAI API 错误: ${response.status} - ${errorText}`)
       }
 

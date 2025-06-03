@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { MessageCircle, X, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Message {
   id: string;
@@ -51,27 +52,24 @@ export const ChatWidget = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: inputMessage,
-          model: 'grok-beta'
-        }),
+      // 使用内置的Grok API
+      const { data, error } = await supabase.functions.invoke('analyze-data', {
+        body: {
+          prompt: inputMessage,
+          model_id: 'grok-3-fast',
+          provider: 'xai',
+          api_key_name: 'XAI_API_KEY'
+        }
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to get AI response');
+      if (error) {
+        throw error;
       }
-
-      const data = await response.json();
       
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: data.response || '抱歉，我现在无法回复您的消息。',
+        content: data?.content || '抱歉，我现在无法回复您的消息。',
         timestamp: new Date()
       };
 

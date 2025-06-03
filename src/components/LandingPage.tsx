@@ -2,13 +2,15 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart3, Brain, Zap, Users, FileText, TrendingUp } from 'lucide-react';
+import { BarChart3, Brain, Zap, Users, FileText, TrendingUp, LogIn, UserPlus } from 'lucide-react';
 
 interface LandingPageProps {
   onGetStarted: () => void;
+  onLogin: () => void;
+  onRegister: () => void;
 }
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin, onRegister }) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* 头部导航 */}
@@ -20,9 +22,23 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               <h1 className="text-xl font-bold text-blue-600">SPSS AI</h1>
               <span className="text-sm text-gray-500">统计科学 — 点就好</span>
             </div>
-            <Button onClick={onGetStarted} className="bg-blue-600 hover:bg-blue-700">
-              开始使用
-            </Button>
+            <div className="flex items-center space-x-4">
+              <Button 
+                variant="outline" 
+                onClick={onLogin}
+                className="flex items-center space-x-2"
+              >
+                <LogIn className="h-4 w-4" />
+                <span>登录</span>
+              </Button>
+              <Button 
+                onClick={onRegister}
+                className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700"
+              >
+                <UserPlus className="h-4 w-4" />
+                <span>注册</span>
+              </Button>
+            </div>
           </div>
         </div>
       </header>
@@ -136,7 +152,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             立即注册，体验AI驱动的统计分析平台
           </p>
           <Button 
-            onClick={onGetStarted}
+            onClick={onRegister}
             size="lg" 
             className="bg-white text-blue-600 hover:bg-gray-100 text-lg px-8 py-3"
           >

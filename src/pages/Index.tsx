@@ -40,11 +40,6 @@ const Index = () => {
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);
-      
-      // 如果用户已登录，直接跳转到分析页面
-      if (session?.user) {
-        setCurrentView('analysis');
-      }
     });
 
     return () => subscription.unsubscribe();
@@ -62,7 +57,11 @@ const Index = () => {
   if (currentView === 'landing' && !user) {
     return (
       <>
-        <LandingPage onGetStarted={() => setCurrentView('auth')} />
+        <LandingPage 
+          onGetStarted={() => setCurrentView('auth')}
+          onLogin={() => setCurrentView('auth')}
+          onRegister={() => setCurrentView('auth')}
+        />
         <ChatWidget />
       </>
     );
