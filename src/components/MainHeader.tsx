@@ -11,7 +11,7 @@ import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 interface MainHeaderProps {
   onDataUpload: (data: any[]) => void;
-  user: SupabaseUser;
+  user: SupabaseUser | null;
   currentView: 'landing' | 'auth' | 'analysis' | 'algorithms' | 'models';
   onViewChange: (view: 'landing' | 'auth' | 'analysis' | 'algorithms' | 'models') => void;
 }
@@ -121,42 +121,53 @@ export const MainHeader: React.FC<MainHeaderProps> = ({ onDataUpload, user, curr
           
           <div className="flex items-center space-x-2 text-sm text-gray-600">
             <Bell className="h-4 w-4 cursor-pointer hover:text-blue-600" />
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="flex items-center space-x-2">
-                  <User className="h-4 w-4" />
-                  <span>{user.email}</span>
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="flex items-center space-x-2">
+                    <User className="h-4 w-4" />
+                    <span>{user.email}</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => onViewChange('analysis')}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    <span>数据分析</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onViewChange('algorithms')}>
+                    <GitBranch className="h-4 w-4 mr-2" />
+                    <span>算法管理</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onViewChange('models')}>
+                    <Cog className="h-4 w-4 mr-2" />
+                    <span>模型管理</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem>
+                    <Settings className="h-4 w-4 mr-2" />
+                    <span>设置</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <Database className="h-4 w-4 mr-2" />
+                    <span>数据管理</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut}>
+                    <LogOut className="h-4 w-4 mr-2" />
+                    <span>退出登录</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <div className="flex items-center space-x-2">
+                <Button variant="ghost" size="sm" onClick={() => onViewChange('auth')}>
+                  登录
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={() => onViewChange('analysis')}>
-                  <FileText className="h-4 w-4 mr-2" />
-                  <span>数据分析</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onViewChange('algorithms')}>
-                  <GitBranch className="h-4 w-4 mr-2" />
-                  <span>算法管理</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onViewChange('models')}>
-                  <Cog className="h-4 w-4 mr-2" />
-                  <span>模型管理</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <Settings className="h-4 w-4 mr-2" />
-                  <span>设置</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Database className="h-4 w-4 mr-2" />
-                  <span>数据管理</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut}>
-                  <LogOut className="h-4 w-4 mr-2" />
-                  <span>退出登录</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                <Button size="sm" onClick={() => onViewChange('auth')}>
+                  注册
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </div>
