@@ -14,6 +14,23 @@ interface Message {
   timestamp: Date;
 }
 
+// 简单的markdown渲染函数
+const renderMarkdown = (text: string) => {
+  // 处理换行
+  const withBreaks = text.replace(/\n/g, '<br />');
+  
+  // 处理粗体
+  const withBold = withBreaks.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  
+  // 处理斜体
+  const withItalic = withBold.replace(/\*(.*?)\*/g, '<em>$1</em>');
+  
+  // 处理代码块
+  const withCode = withItalic.replace(/`(.*?)`/g, '<code class="bg-gray-200 px-1 rounded text-xs">$1</code>');
+  
+  return withCode;
+};
+
 export const ChatWidget = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
@@ -52,7 +69,6 @@ export const ChatWidget = () => {
     setIsLoading(true);
 
     try {
-      // 修复API调用 - 使用正确的模型ID
       const { data, error } = await supabase.functions.invoke('analyze-data', {
         body: {
           prompt: inputMessage,
@@ -144,19 +160,24 @@ export const ChatWidget = () => {
                     className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
                     <div
-                      className={`max-w-[80%] p-2 rounded-lg text-sm ${
+                      className={`max-w-[85%] p-3 rounded-lg text-sm break-words ${
                         message.role === 'user'
                           ? 'bg-blue-600 text-white'
                           : 'bg-gray-100 text-gray-900'
                       }`}
                     >
-                      {message.content}
+                      <div
+                        className="whitespace-pre-wrap leading-relaxed"
+                        dangerouslySetInnerHTML={{
+                          __html: renderMarkdown(message.content)
+                        }}
+                      />
                     </div>
                   </div>
                 ))}
                 {isLoading && (
                   <div className="flex justify-start">
-                    <div className="bg-gray-100 p-2 rounded-lg text-sm">
+                    <div className="bg-gray-100 p-3 rounded-lg text-sm max-w-[85%]">
                       <div className="flex space-x-1">
                         <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
                         <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
