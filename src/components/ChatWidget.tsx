@@ -52,7 +52,7 @@ export const ChatWidget = () => {
     setIsLoading(true);
 
     try {
-      // 使用内置的Grok API
+      // 修复API调用 - 使用正确的模型ID
       const { data, error } = await supabase.functions.invoke('analyze-data', {
         body: {
           prompt: inputMessage,
@@ -63,6 +63,7 @@ export const ChatWidget = () => {
       });
 
       if (error) {
+        console.error('Chat API error:', error);
         throw error;
       }
       

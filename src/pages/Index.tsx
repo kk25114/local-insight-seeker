@@ -18,7 +18,7 @@ const Index = () => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [currentView, setCurrentView] = useState<'landing' | 'auth' | 'analysis' | 'algorithms' | 'models'>('landing');
+  const [currentView, setCurrentView] = useState<'landing' | 'auth' | 'analysis' | 'algorithms' | 'models'>('analysis');
 
   useEffect(() => {
     // 设置认证状态监听器
@@ -53,22 +53,8 @@ const Index = () => {
     );
   }
 
-  // 显示首页
-  if (currentView === 'landing' && !user) {
-    return (
-      <>
-        <LandingPage 
-          onGetStarted={() => setCurrentView('auth')}
-          onLogin={() => setCurrentView('auth')}
-          onRegister={() => setCurrentView('auth')}
-        />
-        <ChatWidget />
-      </>
-    );
-  }
-
-  // 显示认证页面
-  if (currentView === 'auth' && !user) {
+  // 显示认证页面 - 只有在明确请求时才显示
+  if (currentView === 'auth') {
     return (
       <>
         <AuthPage />
@@ -77,8 +63,22 @@ const Index = () => {
     );
   }
 
-  // 如果没有用户但试图访问其他页面，跳转到认证页面
-  if (!user && currentView !== 'landing') {
+  // 显示首页 - 只有在明确请求时才显示
+  if (currentView === 'landing') {
+    return (
+      <>
+        <LandingPage 
+          onGetStarted={() => user ? setCurrentView('analysis') : setCurrentView('auth')}
+          onLogin={() => setCurrentView('auth')}
+          onRegister={() => setCurrentView('auth')}
+        />
+        <ChatWidget />
+      </>
+    );
+  }
+
+  // 如果没有用户但试图访问需要认证的页面，跳转到认证页面
+  if (!user && (currentView === 'algorithms' || currentView === 'models')) {
     setCurrentView('auth');
     return null;
   }
@@ -94,7 +94,7 @@ const Index = () => {
           <WorkArea 
             selectedAnalysis={selectedAnalysis}
             data={uploadedData}
-            user={user!}
+            user={user}
           />
         );
     }
@@ -113,7 +113,7 @@ const Index = () => {
           <SidebarInset>
             <MainHeader 
               onDataUpload={setUploadedData}
-              user={user!}
+              user={user}
               currentView={currentView}
               onViewChange={setCurrentView}
             />

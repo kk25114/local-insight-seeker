@@ -96,9 +96,7 @@ serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     } else if (provider === 'xai') {
-      // 使用 grok-3-fast 模型
-      const grokModel = model_id === 'grok-3-fast' ? 'grok-beta' : model_id;
-      
+      // 直接使用 grok-3-fast 模型
       response = await fetch('https://api.x.ai/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -106,7 +104,7 @@ serve(async (req) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: grokModel,
+          model: model_id, // 直接使用传入的 model_id
           messages: [
             {
               role: 'system',
