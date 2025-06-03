@@ -12,8 +12,8 @@ import type { User as SupabaseUser } from '@supabase/supabase-js';
 interface MainHeaderProps {
   onDataUpload: (data: any[]) => void;
   user: SupabaseUser;
-  currentView: 'analysis' | 'algorithms' | 'models';
-  onViewChange: (view: 'analysis' | 'algorithms' | 'models') => void;
+  currentView: 'landing' | 'auth' | 'analysis' | 'algorithms' | 'models';
+  onViewChange: (view: 'landing' | 'auth' | 'analysis' | 'algorithms' | 'models') => void;
 }
 
 export const MainHeader: React.FC<MainHeaderProps> = ({ onDataUpload, user, currentView, onViewChange }) => {
@@ -57,12 +57,21 @@ export const MainHeader: React.FC<MainHeaderProps> = ({ onDataUpload, user, curr
         title: "已退出登录",
         description: "您已成功退出系统",
       });
+      onViewChange('landing');
     } catch (error) {
       toast({
         title: "退出失败",
         description: "退出登录时出现错误",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleStartAnalysis = () => {
+    if (!user) {
+      onViewChange('auth');
+    } else {
+      fileInputRef.current?.click();
     }
   };
 
@@ -101,6 +110,7 @@ export const MainHeader: React.FC<MainHeaderProps> = ({ onDataUpload, user, curr
               
               <Button
                 size="sm"
+                onClick={handleStartAnalysis}
                 className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700"
               >
                 <Play className="h-4 w-4" />

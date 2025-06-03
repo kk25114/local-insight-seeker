@@ -5,6 +5,8 @@ import { AnalysisSidebar } from '@/components/AnalysisSidebar';
 import { MainHeader } from '@/components/MainHeader';
 import { WorkArea } from '@/components/WorkArea';
 import { AuthPage } from '@/components/AuthPage';
+import { LandingPage } from '@/components/LandingPage';
+import { ChatWidget } from '@/components/ChatWidget';
 import { AlgorithmManagement } from '@/components/AlgorithmManagement';
 import { ModelManagement } from '@/components/ModelManagement';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,7 +18,7 @@ const Index = () => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [currentView, setCurrentView] = useState<'analysis' | 'algorithms' | 'models'>('analysis');
+  const [currentView, setCurrentView] = useState<'landing' | 'auth' | 'analysis' | 'algorithms' | 'models'>('landing');
 
   useEffect(() => {
     // 设置认证状态监听器
@@ -25,6 +27,11 @@ const Index = () => {
         setSession(session);
         setUser(session?.user ?? null);
         setIsLoading(false);
+        
+        // 如果用户已登录且当前在认证页面，跳转到分析页面
+        if (session?.user && currentView === 'auth') {
+          setCurrentView('analysis');
+        }
       }
     );
 
@@ -33,10 +40,15 @@ const Index = () => {
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);
+      
+      // 如果用户已登录，直接跳转到分析页面
+      if (session?.user) {
+        setCurrentView('analysis');
+      }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [currentView]);
 
   if (isLoading) {
     return (
@@ -46,49 +58,74 @@ const Index = () => {
     );
   }
 
-  if (!user) {
-    return <AuthPage />;
+  // 显示首页
+  if (currentView === 'landing' && !user) {
+    return (
+      <>
+        <LandingPage onGetStarted={() => setCurrentView('auth')} />
+        <ChatWidget />
+      </>
+    );
+  }
+
+  // 显示认证页面
+  if (currentView === 'auth' && !user) {
+    return (
+      <>
+        <AuthPage />
+        <ChatWidget />
+      </>
+    );
+  }
+
+  // 如果没有用户但试图访问其他页面，跳转到认证页面
+  if (!user && currentView !== 'landing') {
+    setCurrentView('auth');
+    return null;
   }
 
   const renderContent = () => {
     switch (currentView) {
       case 'algorithms':
-        return <AlgorithmManagement user={user} />;
+        return <AlgorithmManagement user={user!} />;
       case 'models':
-        return <ModelManagement user={user} />;
+        return <ModelManagement user={user!} />;
       default:
         return (
           <WorkArea 
             selectedAnalysis={selectedAnalysis}
             data={uploadedData}
-            user={user}
+            user={user!}
           />
         );
     }
   };
 
   return (
-    <SidebarProvider defaultOpen={true}>
-      <div className="min-h-screen flex w-full bg-gray-50">
-        {currentView === 'analysis' && (
-          <AnalysisSidebar 
-            selectedAnalysis={selectedAnalysis}
-            onSelectAnalysis={setSelectedAnalysis}
-          />
-        )}
-        <SidebarInset>
-          <MainHeader 
-            onDataUpload={setUploadedData}
-            user={user}
-            currentView={currentView}
-            onViewChange={setCurrentView}
-          />
-          <main className="flex-1 p-6 overflow-auto">
-            {renderContent()}
-          </main>
-        </SidebarInset>
-      </div>
-    </SidebarProvider>
+    <>
+      <SidebarProvider defaultOpen={true}>
+        <div className="min-h-screen flex w-full bg-gray-50">
+          {currentView === 'analysis' && (
+            <AnalysisSidebar 
+              selectedAnalysis={selectedAnalysis}
+              onSelectAnalysis={setSelectedAnalysis}
+            />
+          )}
+          <SidebarInset>
+            <MainHeader 
+              onDataUpload={setUploadedData}
+              user={user!}
+              currentView={currentView}
+              onViewChange={setCurrentView}
+            />
+            <main className="flex-1 p-6 overflow-auto">
+              {renderContent()}
+            </main>
+          </SidebarInset>
+        </div>
+      </SidebarProvider>
+      <ChatWidget />
+    </>
   );
 };
 
