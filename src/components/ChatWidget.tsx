@@ -151,23 +151,24 @@ export const ChatWidget = () => {
               </div>
             </CardHeader>
             
-            <CardContent className="flex-1 p-3 flex flex-col">
+            <CardContent className="flex-1 p-3 flex flex-col overflow-hidden">
               {/* 消息列表 */}
-              <div className="flex-1 overflow-y-auto mb-3 space-y-2">
+              <div className="flex-1 overflow-y-auto mb-3 space-y-2 min-h-0">
                 {messages.map((message) => (
                   <div
                     key={message.id}
                     className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
                     <div
-                      className={`max-w-[85%] p-3 rounded-lg text-sm break-words ${
+                      className={`max-w-[80%] min-w-0 p-2 rounded-lg text-xs break-words overflow-wrap-anywhere ${
                         message.role === 'user'
                           ? 'bg-blue-600 text-white'
                           : 'bg-gray-100 text-gray-900'
                       }`}
                     >
                       <div
-                        className="whitespace-pre-wrap leading-relaxed"
+                        className="whitespace-pre-wrap leading-relaxed word-break"
+                        style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
                         dangerouslySetInnerHTML={{
                           __html: renderMarkdown(message.content)
                         }}
@@ -177,7 +178,7 @@ export const ChatWidget = () => {
                 ))}
                 {isLoading && (
                   <div className="flex justify-start">
-                    <div className="bg-gray-100 p-3 rounded-lg text-sm max-w-[85%]">
+                    <div className="bg-gray-100 p-2 rounded-lg text-xs max-w-[80%]">
                       <div className="flex space-x-1">
                         <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
                         <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
@@ -190,7 +191,7 @@ export const ChatWidget = () => {
               </div>
 
               {/* 输入框 */}
-              <div className="flex space-x-2">
+              <div className="flex space-x-2 flex-shrink-0">
                 <Input
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
@@ -203,7 +204,7 @@ export const ChatWidget = () => {
                   onClick={sendMessage}
                   disabled={!inputMessage.trim() || isLoading}
                   size="sm"
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-blue-600 hover:bg-blue-700 flex-shrink-0"
                 >
                   <Send className="h-4 w-4" />
                 </Button>
