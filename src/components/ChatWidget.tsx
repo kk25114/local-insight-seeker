@@ -12,6 +12,7 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  isStreaming?: boolean;
 }
 
 // 简单的markdown渲染函数
@@ -68,29 +69,80 @@ export const ChatWidget = () => {
     setInputMessage('');
     setIsLoading(true);
 
+    // 创建一个新的助手消息用于流式显示
+    const assistantMessageId = (Date.now() + 1).toString();
+    const assistantMessage: Message = {
+      id: assistantMessageId,
+      role: 'assistant',
+      content: '',
+      timestamp: new Date(),
+      isStreaming: true
+    };
+
+    setMessages(prev => [...prev, assistantMessage]);
+
     try {
-      const { data, error } = await supabase.functions.invoke('analyze-data', {
-        body: {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-data`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
           prompt: inputMessage,
           model_id: 'grok-3-fast',
           provider: 'xai',
-          api_key_name: 'XAI_API_KEY'
-        }
+          api_key_name: 'XAI_API_KEY',
+          stream: true
+        })
       });
 
-      if (error) {
-        console.error('Chat API error:', error);
-        throw error;
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: data?.content || '抱歉，我现在无法回复您的消息。',
-        timestamp: new Date()
-      };
 
-      setMessages(prev => [...prev, assistantMessage]);
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (reader) {
+        let accumulatedContent = '';
+        
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6));
+                if (data.content) {
+                  accumulatedContent += data.content;
+                  
+                  // 更新消息内容
+                  setMessages(prev => prev.map(msg => 
+                    msg.id === assistantMessageId 
+                      ? { ...msg, content: accumulatedContent }
+                      : msg
+                  ));
+                }
+              } catch (e) {
+                // 忽略解析错误
+              }
+            }
+          }
+        }
+
+        // 流式传输完成
+        setMessages(prev => prev.map(msg => 
+          msg.id === assistantMessageId 
+            ? { ...msg, isStreaming: false }
+            : msg
+        ));
+      }
+
     } catch (error) {
       console.error('Chat error:', error);
       toast({
@@ -99,13 +151,16 @@ export const ChatWidget = () => {
         variant: "destructive",
       });
       
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: '抱歉，我现在无法回复您的消息，请稍后重试。',
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, errorMessage]);
+      // 更新错误消息
+      setMessages(prev => prev.map(msg => 
+        msg.id === assistantMessageId 
+          ? { 
+              ...msg, 
+              content: '抱歉，我现在无法回复您的消息，请稍后重试。',
+              isStreaming: false 
+            }
+          : msg
+      ));
     } finally {
       setIsLoading(false);
     }
@@ -173,10 +228,13 @@ export const ChatWidget = () => {
                           __html: renderMarkdown(message.content)
                         }}
                       />
+                      {message.isStreaming && (
+                        <span className="inline-block w-2 h-4 bg-blue-600 animate-pulse ml-1"></span>
+                      )}
                     </div>
                   </div>
                 ))}
-                {isLoading && (
+                {isLoading && messages.filter(m => m.isStreaming).length === 0 && (
                   <div className="flex justify-start">
                     <div className="bg-gray-100 p-2 rounded-lg text-xs max-w-[80%]">
                       <div className="flex space-x-1">

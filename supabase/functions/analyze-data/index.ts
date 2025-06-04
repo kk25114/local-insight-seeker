@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt, model_id, provider, api_key_name } = await req.json()
+    const { prompt, model_id, provider, api_key_name, stream = false } = await req.json()
 
     // 创建 Supabase 客户端来获取 API 密钥
     const supabaseClient = createClient(
@@ -51,7 +51,8 @@ serve(async (req) => {
               content: prompt
             }
           ],
-          temperature: 0.1
+          temperature: 0.1,
+          stream: stream
         }),
       })
 
@@ -60,11 +61,59 @@ serve(async (req) => {
         throw new Error(`OpenAI API 错误: ${response.status} - ${errorText}`)
       }
 
-      result = await response.json()
-      return new Response(
-        JSON.stringify({ content: result.choices[0]?.message?.content || '分析完成但未收到结果' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      if (stream) {
+        // 流式传输
+        const readable = new ReadableStream({
+          async start(controller) {
+            const reader = response.body?.getReader()
+            if (!reader) return
+
+            try {
+              while (true) {
+                const { done, value } = await reader.read()
+                if (done) break
+
+                const chunk = new TextDecoder().decode(value)
+                const lines = chunk.split('\n')
+
+                for (const line of lines) {
+                  if (line.startsWith('data: ')) {
+                    const data = line.slice(6)
+                    if (data === '[DONE]') continue
+
+                    try {
+                      const parsed = JSON.parse(data)
+                      const content = parsed.choices?.[0]?.delta?.content
+                      if (content) {
+                        controller.enqueue(`data: ${JSON.stringify({ content })}\n\n`)
+                      }
+                    } catch (e) {
+                      // 忽略解析错误
+                    }
+                  }
+                }
+              }
+            } finally {
+              controller.close()
+            }
+          }
+        })
+
+        return new Response(readable, {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'text/plain; charset=utf-8',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+          }
+        })
+      } else {
+        result = await response.json()
+        return new Response(
+          JSON.stringify({ content: result.choices[0]?.message?.content || '分析完成但未收到结果' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
     } else if (provider === 'anthropic') {
       response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -81,7 +130,8 @@ serve(async (req) => {
               role: 'user',
               content: prompt
             }
-          ]
+          ],
+          stream: stream
         }),
       })
 
@@ -90,11 +140,59 @@ serve(async (req) => {
         throw new Error(`Anthropic API 错误: ${response.status} - ${errorText}`)
       }
 
-      result = await response.json()
-      return new Response(
-        JSON.stringify({ content: result.content[0]?.text || '分析完成但未收到结果' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      if (stream) {
+        // 流式传输处理
+        const readable = new ReadableStream({
+          async start(controller) {
+            const reader = response.body?.getReader()
+            if (!reader) return
+
+            try {
+              while (true) {
+                const { done, value } = await reader.read()
+                if (done) break
+
+                const chunk = new TextDecoder().decode(value)
+                const lines = chunk.split('\n')
+
+                for (const line of lines) {
+                  if (line.startsWith('data: ')) {
+                    const data = line.slice(6)
+                    if (data === '[DONE]') continue
+
+                    try {
+                      const parsed = JSON.parse(data)
+                      const content = parsed.delta?.text
+                      if (content) {
+                        controller.enqueue(`data: ${JSON.stringify({ content })}\n\n`)
+                      }
+                    } catch (e) {
+                      // 忽略解析错误
+                    }
+                  }
+                }
+              }
+            } finally {
+              controller.close()
+            }
+          }
+        })
+
+        return new Response(readable, {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'text/plain; charset=utf-8',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+          }
+        })
+      } else {
+        result = await response.json()
+        return new Response(
+          JSON.stringify({ content: result.content[0]?.text || '分析完成但未收到结果' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
     } else if (provider === 'xai') {
       // 直接使用 grok-3-fast 模型
       response = await fetch('https://api.x.ai/v1/chat/completions', {
@@ -115,7 +213,8 @@ serve(async (req) => {
               content: prompt
             }
           ],
-          temperature: 0.1
+          temperature: 0.1,
+          stream: stream
         }),
       })
 
@@ -125,11 +224,59 @@ serve(async (req) => {
         throw new Error(`xAI API 错误: ${response.status} - ${errorText}`)
       }
 
-      result = await response.json()
-      return new Response(
-        JSON.stringify({ content: result.choices[0]?.message?.content || '分析完成但未收到结果' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      if (stream) {
+        // 流式传输
+        const readable = new ReadableStream({
+          async start(controller) {
+            const reader = response.body?.getReader()
+            if (!reader) return
+
+            try {
+              while (true) {
+                const { done, value } = await reader.read()
+                if (done) break
+
+                const chunk = new TextDecoder().decode(value)
+                const lines = chunk.split('\n')
+
+                for (const line of lines) {
+                  if (line.startsWith('data: ')) {
+                    const data = line.slice(6)
+                    if (data === '[DONE]') continue
+
+                    try {
+                      const parsed = JSON.parse(data)
+                      const content = parsed.choices?.[0]?.delta?.content
+                      if (content) {
+                        controller.enqueue(`data: ${JSON.stringify({ content })}\n\n`)
+                      }
+                    } catch (e) {
+                      // 忽略解析错误
+                    }
+                  }
+                }
+              }
+            } finally {
+              controller.close()
+            }
+          }
+        })
+
+        return new Response(readable, {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'text/plain; charset=utf-8',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+          }
+        })
+      } else {
+        result = await response.json()
+        return new Response(
+          JSON.stringify({ content: result.choices[0]?.message?.content || '分析完成但未收到结果' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
     } else {
       throw new Error(`不支持的AI提供商: ${provider}`)
     }

@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Sidebar,
   SidebarContent,
@@ -23,13 +23,22 @@ import {
   Search,
   MoreHorizontal
 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AnalysisSidebarProps {
   selectedAnalysis: string;
   onSelectAnalysis: (analysis: string) => void;
 }
 
-const analysisCategories = [
+interface Algorithm {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  prompt_template: string;
+}
+
+const defaultAnalysisCategories = [
   {
     label: "通用方法",
     items: [
@@ -99,6 +108,64 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
   onSelectAnalysis 
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [customAlgorithms, setCustomAlgorithms] = useState<Algorithm[]>([]);
+
+  // 加载自定义算法
+  useEffect(() => {
+    loadCustomAlgorithms();
+  }, []);
+
+  const loadCustomAlgorithms = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('analysis_algorithms')
+        .select('*')
+        .order('name', { ascending: true });
+
+      if (error) {
+        console.error('加载自定义算法失败:', error);
+        return;
+      }
+
+      setCustomAlgorithms(data || []);
+    } catch (error) {
+      console.error('加载自定义算法失败:', error);
+    }
+  };
+
+  // 合并默认分类和自定义算法
+  const analysisCategories = useMemo(() => {
+    const categories = [...defaultAnalysisCategories];
+    
+    // 按分类分组自定义算法
+    const algorithmsByCategory = customAlgorithms.reduce((acc, algorithm) => {
+      if (!acc[algorithm.category]) {
+        acc[algorithm.category] = [];
+      }
+      acc[algorithm.category].push({
+        title: algorithm.name,
+        icon: Calculator, // 默认图标
+        key: `custom_${algorithm.id}`
+      });
+      return acc;
+    }, {} as Record<string, any[]>);
+
+    // 将自定义算法添加到对应分类中
+    Object.entries(algorithmsByCategory).forEach(([categoryName, algorithms]) => {
+      const existingCategory = categories.find(cat => cat.label === categoryName);
+      if (existingCategory) {
+        existingCategory.items.push(...algorithms);
+      } else {
+        // 创建新的分类
+        categories.push({
+          label: categoryName,
+          items: algorithms
+        });
+      }
+    });
+
+    return categories;
+  }, [customAlgorithms]);
 
   // 过滤分析方法
   const filteredCategories = useMemo(() => {
@@ -115,7 +182,7 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
         item.key.toLowerCase().includes(query)
       )
     })).filter(category => category.items.length > 0);
-  }, [searchQuery]);
+  }, [searchQuery, analysisCategories]);
 
   return (
     <Sidebar className="border-r border-gray-200">
