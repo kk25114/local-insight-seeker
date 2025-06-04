@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { MessageCircle, X, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Message {
   id: string;
@@ -81,69 +82,42 @@ export const ChatWidget = () => {
     setMessages(prev => [...prev, assistantMessage]);
 
     try {
-      // 使用配置文件中的Supabase URL和密钥
-      const supabaseUrl = "https://nizrlyekwwnujsvcjzwj.supabase.co";
-      const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5penJseWVrd3dudWpzdmNqendqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg3NTA1MTgsImV4cCI6MjA2NDMyNjUxOH0.q6rt3lQTTotcxUJ3hPnluovTisuSQBorlutUflb9nPA";
+      console.log('发送聊天请求，消息内容:', inputMessage);
       
-      console.log('发送聊天请求到:', `${supabaseUrl}/functions/v1/analyze-data`);
-      
-      const response = await fetch(`${supabaseUrl}/functions/v1/analyze-data`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseAnonKey}`,
-        },
-        body: JSON.stringify({
+      // 使用 Supabase 客户端调用边缘函数
+      const { data, error } = await supabase.functions.invoke('analyze-data', {
+        body: {
           prompt: inputMessage,
           model_id: 'grok-3-fast',
           provider: 'xai',
           api_key_name: 'XAI_API_KEY',
           stream: true
-        })
+        }
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (error) {
+        console.error('Supabase函数调用错误:', error);
+        throw new Error(error.message || '调用失败');
       }
 
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
+      console.log('收到响应:', data);
 
-      if (reader) {
-        let accumulatedContent = '';
-        
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n');
-
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              try {
-                const data = JSON.parse(line.slice(6));
-                if (data.content) {
-                  accumulatedContent += data.content;
-                  
-                  // 更新消息内容
-                  setMessages(prev => prev.map(msg => 
-                    msg.id === assistantMessageId 
-                      ? { ...msg, content: accumulatedContent }
-                      : msg
-                  ));
-                }
-              } catch (e) {
-                console.log('解析行数据失败:', line);
-              }
-            }
-          }
-        }
-
-        // 流式传输完成
+      // 如果有响应内容，更新消息
+      if (data && data.content) {
         setMessages(prev => prev.map(msg => 
           msg.id === assistantMessageId 
-            ? { ...msg, isStreaming: false }
+            ? { ...msg, content: data.content, isStreaming: false }
+            : msg
+        ));
+      } else {
+        // 如果没有内容，显示默认消息
+        setMessages(prev => prev.map(msg => 
+          msg.id === assistantMessageId 
+            ? { 
+                ...msg, 
+                content: '收到了您的消息，但AI暂时无法生成回复。请稍后重试。',
+                isStreaming: false 
+              }
             : msg
         ));
       }
@@ -152,7 +126,7 @@ export const ChatWidget = () => {
       console.error('Chat error:', error);
       toast({
         title: "发送失败",
-        description: "无法发送消息，请稍后重试",
+        description: error instanceof Error ? error.message : "无法发送消息，请稍后重试",
         variant: "destructive",
       });
       
