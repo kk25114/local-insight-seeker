@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { MessageCircle, X, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 
 interface Message {
   id: string;
@@ -82,9 +81,9 @@ export const ChatWidget = () => {
     setMessages(prev => [...prev, assistantMessage]);
 
     try {
-      // 获取Supabase URL
-      const supabaseUrl = supabase.supabaseUrl;
-      const supabaseAnonKey = supabase.supabaseKey;
+      // 使用配置文件中的Supabase URL和密钥
+      const supabaseUrl = "https://nizrlyekwwnujsvcjzwj.supabase.co";
+      const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5penJseWVrd3dudWpzdmNqendqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg3NTA1MTgsImV4cCI6MjA2NDMyNjUxOH0.q6rt3lQTTotcxUJ3hPnluovTisuSQBorlutUflb9nPA";
       
       console.log('发送聊天请求到:', `${supabaseUrl}/functions/v1/analyze-data`);
       
