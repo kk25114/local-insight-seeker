@@ -82,11 +82,17 @@ export const ChatWidget = () => {
     setMessages(prev => [...prev, assistantMessage]);
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-data`, {
+      // 获取Supabase URL
+      const supabaseUrl = supabase.supabaseUrl;
+      const supabaseAnonKey = supabase.supabaseKey;
+      
+      console.log('发送聊天请求到:', `${supabaseUrl}/functions/v1/analyze-data`);
+      
+      const response = await fetch(`${supabaseUrl}/functions/v1/analyze-data`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Authorization': `Bearer ${supabaseAnonKey}`,
         },
         body: JSON.stringify({
           prompt: inputMessage,
@@ -129,7 +135,7 @@ export const ChatWidget = () => {
                   ));
                 }
               } catch (e) {
-                // 忽略解析错误
+                console.log('解析行数据失败:', line);
               }
             }
           }
