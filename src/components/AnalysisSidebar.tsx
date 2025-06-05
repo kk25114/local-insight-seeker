@@ -3,14 +3,17 @@ import React, { useState, useMemo, useEffect } from 'react';
 import {
   Sidebar,
   SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "@/components/ui/accordion";
 import { 
   BarChart3, 
   TrendingUp, 
@@ -208,32 +211,38 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
             未找到匹配的分析方法
           </div>
         ) : (
-          filteredCategories.map((category) => (
-            <SidebarGroup key={category.label}>
-              <SidebarGroupLabel className="text-xs font-semibold text-gray-600 px-2 py-2">
-                {category.label}
-              </SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {category.items.map((item) => (
-                    <SidebarMenuItem key={item.key}>
-                      <SidebarMenuButton 
-                        onClick={() => onSelectAnalysis(item.key)}
-                        className={`w-full justify-start text-sm py-2 px-2 ${
-                          selectedAnalysis === item.key 
-                            ? 'bg-blue-100 text-blue-700' 
-                            : 'hover:bg-gray-100'
-                        }`}
-                      >
-                        <item.icon className="h-4 w-4 mr-2" />
-                        <span>{item.title}</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          ))
+          <Accordion
+            type="multiple"
+            defaultValue={filteredCategories.map((c) => c.label)}
+            className="w-full"
+          >
+            {filteredCategories.map((category) => (
+              <AccordionItem key={category.label} value={category.label}>
+                <AccordionTrigger className="text-xs font-semibold text-gray-600 px-2 py-2">
+                  {category.label}
+                </AccordionTrigger>
+                <AccordionContent className="px-0">
+                  <SidebarMenu>
+                    {category.items.map((item) => (
+                      <SidebarMenuItem key={item.key}>
+                        <SidebarMenuButton
+                          onClick={() => onSelectAnalysis(item.key)}
+                          className={`w-full justify-start text-sm py-2 px-2 ${
+                            selectedAnalysis === item.key
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'hover:bg-gray-100'
+                          }`}
+                        >
+                          <item.icon className="h-4 w-4 mr-2" />
+                          <span>{item.title}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
         )}
       </SidebarContent>
     </Sidebar>
