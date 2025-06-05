@@ -65,6 +65,7 @@ export const ChatWidget = () => {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const currentInput = inputMessage;
     setInputMessage('');
     setIsLoading(true);
 
@@ -81,9 +82,8 @@ export const ChatWidget = () => {
     setMessages(prev => [...prev, assistantMessage]);
 
     try {
-      console.log('发送聊天请求，消息内容:', inputMessage);
+      console.log('发送聊天请求，消息内容:', currentInput);
       
-      // 直接调用边缘函数以支持流式传输
       const supabaseUrl = "https://nizrlyekwwnujsvcjzwj.supabase.co";
       const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5penJseWVrd3dudWpzdmNqendqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg3NTA1MTgsImV4cCI6MjA2NDMyNjUxOH0.q6rt3lQTTotcxUJ3hPnluovTisuSQBorlutUflb9nPA";
       
@@ -94,7 +94,7 @@ export const ChatWidget = () => {
           'Authorization': `Bearer ${supabaseAnonKey}`,
         },
         body: JSON.stringify({
-          prompt: inputMessage,
+          prompt: currentInput,
           model_id: 'grok-3-fast',
           provider: 'xai',
           api_key_name: 'XAI_API_KEY',
@@ -102,65 +102,100 @@ export const ChatWidget = () => {
         })
       });
 
+      console.log('响应状态:', response.status);
+      console.log('响应头:', response.headers);
+
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        console.error('API错误响应:', errorText);
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
       }
 
-      const reader = response.body?.getReader();
+      if (!response.body) {
+        throw new Error('响应体为空');
+      }
+
+      const reader = response.body.getReader();
       const decoder = new TextDecoder();
+      let accumulatedContent = '';
 
-      if (reader) {
-        let accumulatedContent = '';
-        
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
+      console.log('开始读取流式数据...');
 
-            const chunk = decoder.decode(value, { stream: true });
-            console.log('接收到数据块:', chunk);
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          
+          if (done) {
+            console.log('流式数据读取完成');
+            break;
+          }
+
+          const chunk = decoder.decode(value, { stream: true });
+          console.log('原始数据块:', chunk);
+          
+          // 处理可能包含多行的数据块
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            const trimmedLine = line.trim();
             
-            // 分割数据块为行
-            const lines = chunk.split('\n');
+            if (trimmedLine === '') continue;
+            
+            console.log('处理行:', trimmedLine);
+            
+            if (trimmedLine.startsWith('data: ')) {
+              const dataStr = trimmedLine.slice(6).trim();
+              console.log('提取数据:', dataStr);
+              
+              if (dataStr === '[DONE]') {
+                console.log('接收到结束标记');
+                break;
+              }
 
-            for (const line of lines) {
-              const trimmedLine = line.trim();
-              if (trimmedLine.startsWith('data: ')) {
-                const dataStr = trimmedLine.slice(6); // 移除 "data: "
-                if (dataStr === '[DONE]') {
-                  console.log('流式传输完成');
-                  break;
-                }
-
-                try {
-                  const data = JSON.parse(dataStr);
-                  console.log('解析的数据:', data);
+              try {
+                const data = JSON.parse(dataStr);
+                console.log('解析的JSON数据:', data);
+                
+                if (data.content) {
+                  accumulatedContent += data.content;
+                  console.log('更新累积内容:', accumulatedContent);
                   
-                  if (data.content) {
-                    accumulatedContent += data.content;
-                    console.log('累积内容:', accumulatedContent);
-                    
-                    // 实时更新消息内容
-                    setMessages(prev => prev.map(msg => 
-                      msg.id === assistantMessageId 
-                        ? { ...msg, content: accumulatedContent }
-                        : msg
-                    ));
-                  }
-                } catch (parseError) {
-                  console.log('解析JSON失败:', dataStr, parseError);
+                  // 实时更新消息内容
+                  setMessages(prev => prev.map(msg => 
+                    msg.id === assistantMessageId 
+                      ? { ...msg, content: accumulatedContent }
+                      : msg
+                  ));
                 }
+              } catch (parseError) {
+                console.warn('JSON解析失败:', dataStr, parseError);
+                // 可能是不完整的JSON，继续处理下一行
               }
             }
           }
-        } finally {
-          // 确保流式传输状态被清除
-          setMessages(prev => prev.map(msg => 
-            msg.id === assistantMessageId 
-              ? { ...msg, isStreaming: false }
-              : msg
-          ));
         }
+      } finally {
+        console.log('清理流式传输状态');
+        // 确保流式传输状态被清除
+        setMessages(prev => prev.map(msg => 
+          msg.id === assistantMessageId 
+            ? { ...msg, isStreaming: false }
+            : msg
+        ));
+      }
+
+      // 如果没有接收到任何内容，显示错误消息
+      if (accumulatedContent === '') {
+        console.warn('没有接收到任何内容');
+        setMessages(prev => prev.map(msg => 
+          msg.id === assistantMessageId 
+            ? { 
+                ...msg, 
+                content: '抱歉，没有收到回复，请重试。',
+                isStreaming: false 
+              }
+            : msg
+        ));
       }
 
     } catch (error) {
