@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -194,7 +193,8 @@ serve(async (req) => {
         )
       }
     } else if (provider === 'xai') {
-      // 直接使用 grok-3-fast 模型
+      console.log('开始调用 xAI API...')
+      
       response = await fetch('https://api.x.ai/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -202,7 +202,7 @@ serve(async (req) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: model_id, // 直接使用传入的 model_id
+          model: model_id,
           messages: [
             {
               role: 'system',
@@ -218,6 +218,8 @@ serve(async (req) => {
         }),
       })
 
+      console.log('xAI API 响应状态:', response.status)
+
       if (!response.ok) {
         const errorText = await response.text()
         console.error(`xAI API 错误: ${response.status} - ${errorText}`)
@@ -225,38 +227,67 @@ serve(async (req) => {
       }
 
       if (stream) {
-        // 流式传输
+        console.log('开始处理 xAI 流式响应...')
+        
+        // 直接转发流式响应，确保正确的数据格式
         const readable = new ReadableStream({
           async start(controller) {
             const reader = response.body?.getReader()
-            if (!reader) return
+            if (!reader) {
+              console.error('无法获取响应流读取器')
+              controller.close()
+              return
+            }
 
+            const encoder = new TextEncoder()
+            
             try {
               while (true) {
                 const { done, value } = await reader.read()
-                if (done) break
+                if (done) {
+                  console.log('xAI 流式响应读取完成')
+                  break
+                }
 
                 const chunk = new TextDecoder().decode(value)
+                console.log('接收到 xAI 数据块:', chunk)
+                
                 const lines = chunk.split('\n')
 
                 for (const line of lines) {
-                  if (line.startsWith('data: ')) {
-                    const data = line.slice(6)
-                    if (data === '[DONE]') continue
+                  const trimmedLine = line.trim()
+                  if (!trimmedLine) continue
+                  
+                  if (trimmedLine.startsWith('data: ')) {
+                    const dataStr = trimmedLine.slice(6).trim()
+                    console.log('处理 xAI 数据:', dataStr)
+                    
+                    if (dataStr === '[DONE]') {
+                      console.log('接收到 xAI 结束标记')
+                      controller.enqueue(encoder.encode(`data: [DONE]\n\n`))
+                      continue
+                    }
 
                     try {
-                      const parsed = JSON.parse(data)
+                      const parsed = JSON.parse(dataStr)
                       const content = parsed.choices?.[0]?.delta?.content
                       if (content) {
-                        controller.enqueue(`data: ${JSON.stringify({ content })}\n\n`)
+                        console.log('提取到内容:', content)
+                        const formattedData = `data: ${JSON.stringify({ content })}\n\n`
+                        controller.enqueue(encoder.encode(formattedData))
+                      } else {
+                        console.log('数据中没有内容字段:', parsed)
                       }
-                    } catch (e) {
-                      // 忽略解析错误
+                    } catch (parseError) {
+                      console.warn('xAI JSON解析失败:', dataStr, parseError)
                     }
                   }
                 }
               }
+            } catch (error) {
+              console.error('处理 xAI 流式响应时出错:', error)
             } finally {
+              console.log('关闭 xAI 流式响应控制器')
               controller.close()
             }
           }
@@ -265,7 +296,7 @@ serve(async (req) => {
         return new Response(readable, {
           headers: {
             ...corsHeaders,
-            'Content-Type': 'text/plain; charset=utf-8',
+            'Content-Type': 'text/event-stream',
             'Cache-Control': 'no-cache',
             'Connection': 'keep-alive',
           }
