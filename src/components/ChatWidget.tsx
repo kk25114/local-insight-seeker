@@ -117,7 +117,6 @@ export const ChatWidget = () => {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let accumulatedContent = '';
-      let buffer = '';
 
       console.log('开始读取流式数据...');
 
@@ -133,14 +132,8 @@ export const ChatWidget = () => {
           const chunk = decoder.decode(value, { stream: true });
           console.log('收到数据块:', chunk);
           
-          // 将新的数据块添加到缓冲区
-          buffer += chunk;
-          
           // 按行处理数据
-          const lines = buffer.split('\n');
-          
-          // 保留最后一行（可能不完整），其余的都处理
-          buffer = lines.pop() || '';
+          const lines = chunk.split('\n');
           
           for (const line of lines) {
             const trimmedLine = line.trim();
@@ -167,45 +160,23 @@ export const ChatWidget = () => {
                   accumulatedContent += data.content;
                   console.log('累积内容:', accumulatedContent);
                   
-                  // 实时更新消息内容
+                  // 实时更新消息内容 - 这里是关键的逐字显示逻辑
                   setMessages(prev => prev.map(msg => 
                     msg.id === assistantMessageId 
                       ? { ...msg, content: accumulatedContent }
                       : msg
                   ));
+                  
+                  // 强制触发重新渲染和滚动
+                  await new Promise(resolve => setTimeout(resolve, 0));
                 } else {
                   console.log('数据中没有content字段:', data);
                 }
               } catch (parseError) {
                 console.warn('JSON解析失败:', dataStr, parseError);
-                // 可能是不完整的JSON，继续处理下一行
               }
             } else {
               console.log('跳过非data行:', trimmedLine);
-            }
-          }
-        }
-        
-        // 处理缓冲区中剩余的数据
-        if (buffer.trim()) {
-          console.log('处理缓冲区剩余数据:', buffer);
-          const trimmedLine = buffer.trim();
-          if (trimmedLine.startsWith('data: ')) {
-            const dataStr = trimmedLine.slice(6).trim();
-            if (dataStr !== '[DONE]') {
-              try {
-                const data = JSON.parse(dataStr);
-                if (data.content) {
-                  accumulatedContent += data.content;
-                  setMessages(prev => prev.map(msg => 
-                    msg.id === assistantMessageId 
-                      ? { ...msg, content: accumulatedContent }
-                      : msg
-                  ));
-                }
-              } catch (parseError) {
-                console.warn('最终JSON解析失败:', dataStr, parseError);
-              }
             }
           }
         }
