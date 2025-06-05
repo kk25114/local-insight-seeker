@@ -103,7 +103,6 @@ export const ChatWidget = () => {
       });
 
       console.log('响应状态:', response.status);
-      console.log('响应头:', response.headers);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -118,6 +117,7 @@ export const ChatWidget = () => {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let accumulatedContent = '';
+      let buffer = '';
 
       console.log('开始读取流式数据...');
 
@@ -131,11 +131,17 @@ export const ChatWidget = () => {
           }
 
           const chunk = decoder.decode(value, { stream: true });
-          console.log('原始数据块:', chunk);
+          console.log('收到数据块:', chunk);
           
-          // 处理可能包含多行的数据块
-          const lines = chunk.split('\n');
-
+          // 将新的数据块添加到缓冲区
+          buffer += chunk;
+          
+          // 按行处理数据
+          const lines = buffer.split('\n');
+          
+          // 保留最后一行（可能不完整），其余的都处理
+          buffer = lines.pop() || '';
+          
           for (const line of lines) {
             const trimmedLine = line.trim();
             
@@ -145,7 +151,7 @@ export const ChatWidget = () => {
             
             if (trimmedLine.startsWith('data: ')) {
               const dataStr = trimmedLine.slice(6).trim();
-              console.log('提取数据:', dataStr);
+              console.log('提取的数据:', dataStr);
               
               if (dataStr === '[DONE]') {
                 console.log('接收到结束标记');
@@ -156,9 +162,10 @@ export const ChatWidget = () => {
                 const data = JSON.parse(dataStr);
                 console.log('解析的JSON数据:', data);
                 
+                // 检查是否有内容字段
                 if (data.content) {
                   accumulatedContent += data.content;
-                  console.log('更新累积内容:', accumulatedContent);
+                  console.log('累积内容:', accumulatedContent);
                   
                   // 实时更新消息内容
                   setMessages(prev => prev.map(msg => 
@@ -166,16 +173,45 @@ export const ChatWidget = () => {
                       ? { ...msg, content: accumulatedContent }
                       : msg
                   ));
+                } else {
+                  console.log('数据中没有content字段:', data);
                 }
               } catch (parseError) {
                 console.warn('JSON解析失败:', dataStr, parseError);
                 // 可能是不完整的JSON，继续处理下一行
               }
+            } else {
+              console.log('跳过非data行:', trimmedLine);
             }
           }
         }
+        
+        // 处理缓冲区中剩余的数据
+        if (buffer.trim()) {
+          console.log('处理缓冲区剩余数据:', buffer);
+          const trimmedLine = buffer.trim();
+          if (trimmedLine.startsWith('data: ')) {
+            const dataStr = trimmedLine.slice(6).trim();
+            if (dataStr !== '[DONE]') {
+              try {
+                const data = JSON.parse(dataStr);
+                if (data.content) {
+                  accumulatedContent += data.content;
+                  setMessages(prev => prev.map(msg => 
+                    msg.id === assistantMessageId 
+                      ? { ...msg, content: accumulatedContent }
+                      : msg
+                  ));
+                }
+              } catch (parseError) {
+                console.warn('最终JSON解析失败:', dataStr, parseError);
+              }
+            }
+          }
+        }
+        
       } finally {
-        console.log('清理流式传输状态');
+        console.log('清理流式传输状态，最终内容长度:', accumulatedContent.length);
         // 确保流式传输状态被清除
         setMessages(prev => prev.map(msg => 
           msg.id === assistantMessageId 
@@ -196,6 +232,8 @@ export const ChatWidget = () => {
               }
             : msg
         ));
+      } else {
+        console.log('成功接收到内容，长度:', accumulatedContent.length);
       }
 
     } catch (error) {
