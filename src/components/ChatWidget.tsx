@@ -112,40 +112,55 @@ export const ChatWidget = () => {
       if (reader) {
         let accumulatedContent = '';
         
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
 
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n');
+            const chunk = decoder.decode(value, { stream: true });
+            console.log('接收到数据块:', chunk);
+            
+            // 分割数据块为行
+            const lines = chunk.split('\n');
 
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              try {
-                const data = JSON.parse(line.slice(6));
-                if (data.content) {
-                  accumulatedContent += data.content;
-                  
-                  // 更新消息内容
-                  setMessages(prev => prev.map(msg => 
-                    msg.id === assistantMessageId 
-                      ? { ...msg, content: accumulatedContent }
-                      : msg
-                  ));
+            for (const line of lines) {
+              const trimmedLine = line.trim();
+              if (trimmedLine.startsWith('data: ')) {
+                const dataStr = trimmedLine.slice(6); // 移除 "data: "
+                if (dataStr === '[DONE]') {
+                  console.log('流式传输完成');
+                  break;
                 }
-              } catch (e) {
-                console.log('解析行数据失败:', line);
+
+                try {
+                  const data = JSON.parse(dataStr);
+                  console.log('解析的数据:', data);
+                  
+                  if (data.content) {
+                    accumulatedContent += data.content;
+                    console.log('累积内容:', accumulatedContent);
+                    
+                    // 实时更新消息内容
+                    setMessages(prev => prev.map(msg => 
+                      msg.id === assistantMessageId 
+                        ? { ...msg, content: accumulatedContent }
+                        : msg
+                    ));
+                  }
+                } catch (parseError) {
+                  console.log('解析JSON失败:', dataStr, parseError);
+                }
               }
             }
           }
+        } finally {
+          // 确保流式传输状态被清除
+          setMessages(prev => prev.map(msg => 
+            msg.id === assistantMessageId 
+              ? { ...msg, isStreaming: false }
+              : msg
+          ));
         }
-
-        // 流式传输完成
-        setMessages(prev => prev.map(msg => 
-          msg.id === assistantMessageId 
-            ? { ...msg, isStreaming: false }
-            : msg
-        ));
       }
 
     } catch (error) {
