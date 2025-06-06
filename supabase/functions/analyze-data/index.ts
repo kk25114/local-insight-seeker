@@ -108,8 +108,15 @@ serve(async (req) => {
         })
       } else {
         result = await response.json()
+        const text = result.choices[0]?.message?.content || '分析完成但未收到结果'
+        await supabaseClient.from('analysis_logs').insert({
+          prompt,
+          provider,
+          model_id,
+          result: text,
+        })
         return new Response(
-          JSON.stringify({ content: result.choices[0]?.message?.content || '分析完成但未收到结果' }),
+          JSON.stringify({ content: text }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
@@ -187,8 +194,15 @@ serve(async (req) => {
         })
       } else {
         result = await response.json()
+        const text = result.content[0]?.text || '分析完成但未收到结果'
+        await supabaseClient.from('analysis_logs').insert({
+          prompt,
+          provider,
+          model_id,
+          result: text,
+        })
         return new Response(
-          JSON.stringify({ content: result.content[0]?.text || '分析完成但未收到结果' }),
+          JSON.stringify({ content: text }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
@@ -303,8 +317,15 @@ serve(async (req) => {
         })
       } else {
         result = await response.json()
+        const text = result.choices[0]?.message?.content || '分析完成但未收到结果'
+        await supabaseClient.from('analysis_logs').insert({
+          prompt,
+          provider,
+          model_id,
+          result: text,
+        })
         return new Response(
-          JSON.stringify({ content: result.choices[0]?.message?.content || '分析完成但未收到结果' }),
+          JSON.stringify({ content: text }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
