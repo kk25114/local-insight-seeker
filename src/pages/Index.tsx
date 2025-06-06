@@ -9,6 +9,7 @@ import { LandingPage } from '@/components/LandingPage';
 import { ChatWidget } from '@/components/ChatWidget';
 import { AlgorithmManagement } from '@/components/AlgorithmManagement';
 import { ModelManagement } from '@/components/ModelManagement';
+import { DataManagement } from '@/components/DataManagement';
 import { supabase } from '@/integrations/supabase/client';
 import type { User, Session } from '@supabase/supabase-js';
 
@@ -18,7 +19,7 @@ const Index = () => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [currentView, setCurrentView] = useState<'landing' | 'auth' | 'analysis' | 'algorithms' | 'models'>('analysis');
+  const [currentView, setCurrentView] = useState<'landing' | 'auth' | 'analysis' | 'algorithms' | 'models' | 'data'>('analysis');
 
   useEffect(() => {
     // 设置认证状态监听器
@@ -78,7 +79,7 @@ const Index = () => {
   }
 
   // 如果没有用户但试图访问需要认证的页面，跳转到认证页面
-  if (!user && (currentView === 'algorithms' || currentView === 'models')) {
+  if (!user && (currentView === 'algorithms' || currentView === 'models' || currentView === 'data')) {
     setCurrentView('auth');
     return null;
   }
@@ -89,6 +90,8 @@ const Index = () => {
         return <AlgorithmManagement user={user!} />;
       case 'models':
         return <ModelManagement user={user!} />;
+      case 'data':
+        return <DataManagement user={user!} onDataSelect={setUploadedData} />;
       default:
         return (
           <WorkArea 

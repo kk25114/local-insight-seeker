@@ -6,7 +6,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarTrigger,
 } from "@/components/ui/sidebar";
 import {
   Accordion,
@@ -24,9 +23,12 @@ import {
   Database,
   FileText,
   Search,
-  MoreHorizontal
+  MoreHorizontal,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
 
 interface AnalysisSidebarProps {
   selectedAnalysis: string;
@@ -112,6 +114,7 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [customAlgorithms, setCustomAlgorithms] = useState<Algorithm[]>([]);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   // 加载自定义算法
   useEffect(() => {
@@ -188,63 +191,104 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
   }, [searchQuery, analysisCategories]);
 
   return (
-    <Sidebar className="border-r border-gray-200">
-      <div className="p-4 border-b border-gray-200">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2 flex-1 group-data-[collapsible=icon]:hidden">
-            <Search className="h-4 w-4 text-gray-400" />
-            <input 
-              type="text" 
-              placeholder="搜索方法" 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="text-sm bg-transparent border-none outline-none flex-1 placeholder-gray-400"
-            />
-          </div>
-          <SidebarTrigger className="h-6 w-6" />
-        </div>
-      </div>
-      
-      <SidebarContent className="px-2">
-        {filteredCategories.length === 0 ? (
-          <div className="p-4 text-center text-gray-500 text-sm group-data-[collapsible=icon]:hidden">
-            未找到匹配的分析方法
-          </div>
+    <div className={`relative border-r border-gray-200 bg-white transition-all duration-300 ${
+      isCollapsed ? 'w-12' : 'w-64'
+    }`}>
+      {/* 折叠按钮 */}
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        className="absolute -right-3 top-4 z-10 h-6 w-6 rounded-full border border-gray-200 bg-white shadow-sm hover:bg-gray-50"
+      >
+        {isCollapsed ? (
+          <ChevronRight className="h-3 w-3" />
         ) : (
-          <Accordion
-            type="multiple"
-            defaultValue={filteredCategories.map((c) => c.label)}
-            className="w-full"
-          >
-            {filteredCategories.map((category) => (
-              <AccordionItem key={category.label} value={category.label}>
-                <AccordionTrigger className="text-xs font-semibold text-gray-600 px-2 py-2">
-                  {category.label}
-                </AccordionTrigger>
-                <AccordionContent className="px-0">
-                  <SidebarMenu>
-                    {category.items.map((item) => (
-                      <SidebarMenuItem key={item.key}>
-                        <SidebarMenuButton
-                          onClick={() => onSelectAnalysis(item.key)}
-                          className={`w-full justify-start text-sm py-2 px-2 ${
-                            selectedAnalysis === item.key
-                              ? 'bg-blue-100 text-blue-700'
-                              : 'hover:bg-gray-100'
-                          }`}
-                        >
-                          <item.icon className="h-4 w-4 mr-2" />
-                          <span>{item.title}</span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ))}
-                  </SidebarMenu>
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
+          <ChevronLeft className="h-3 w-3" />
         )}
-      </SidebarContent>
-    </Sidebar>
+      </Button>
+
+      {!isCollapsed && (
+        <>
+          <div className="p-4 border-b border-gray-200">
+            <div className="flex items-center space-x-2">
+              <Search className="h-4 w-4 text-gray-400" />
+              <input 
+                type="text" 
+                placeholder="搜索方法" 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="text-sm bg-transparent border-none outline-none flex-1 placeholder-gray-400"
+              />
+            </div>
+          </div>
+          
+          <div className="px-2 overflow-y-auto">
+            {filteredCategories.length === 0 ? (
+              <div className="p-4 text-center text-gray-500 text-sm">
+                未找到匹配的分析方法
+              </div>
+            ) : (
+              <Accordion
+                type="multiple"
+                defaultValue={filteredCategories.map((c) => c.label)}
+                className="w-full"
+              >
+                {filteredCategories.map((category) => (
+                  <AccordionItem key={category.label} value={category.label}>
+                    <AccordionTrigger className="text-xs font-semibold text-gray-600 px-2 py-2">
+                      {category.label}
+                    </AccordionTrigger>
+                    <AccordionContent className="px-0">
+                      <div className="space-y-1">
+                        {category.items.map((item) => (
+                          <button
+                            key={item.key}
+                            onClick={() => onSelectAnalysis(item.key)}
+                            className={`w-full flex items-center justify-start text-sm py-2 px-2 rounded-md transition-colors ${
+                              selectedAnalysis === item.key
+                                ? 'bg-blue-100 text-blue-700'
+                                : 'hover:bg-gray-100'
+                            }`}
+                          >
+                            <item.icon className="h-4 w-4 mr-2" />
+                            <span>{item.title}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            )}
+          </div>
+        </>
+      )}
+
+      {isCollapsed && (
+        <div className="p-2 space-y-2">
+          {analysisCategories.slice(0, 8).map((category) => (
+            <div key={category.label} className="space-y-1">
+              {category.items.slice(0, 1).map((item) => (
+                <Button
+                  key={item.key}
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onSelectAnalysis(item.key)}
+                  className={`w-8 h-8 p-0 ${
+                    selectedAnalysis === item.key
+                      ? 'bg-blue-100 text-blue-700'
+                      : ''
+                  }`}
+                  title={item.title}
+                >
+                  <item.icon className="h-4 w-4" />
+                </Button>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 };

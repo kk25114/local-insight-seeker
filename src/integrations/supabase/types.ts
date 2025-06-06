@@ -78,33 +78,6 @@ export type Database = {
         }
         Relationships: []
       }
-      analysis_logs: {
-        Row: {
-          id: string
-          prompt: string
-          provider: string
-          model_id: string
-          result: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          prompt: string
-          provider: string
-          model_id: string
-          result?: string | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          prompt?: string
-          provider?: string
-          model_id?: string
-          result?: string | null
-          created_at?: string
-        }
-        Relationships: []
-      }
       profiles: {
         Row: {
           created_at: string
