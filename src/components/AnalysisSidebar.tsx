@@ -4,8 +4,7 @@ import {
   SidebarContent,
   SidebarMenu,
   SidebarMenuButton,
-  SidebarMenuItem,
-  useSidebar
+  SidebarMenuItem
 } from "@/components/ui/sidebar";
 import {
   Accordion,
@@ -136,7 +135,6 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
   const [dropdownValue, setDropdownValue] = useState('option1');
   const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false);
   const [currentAnalysisInfo, setCurrentAnalysisInfo] = useState<AnalysisDetail | null>(null);
-  const { isOpen, setIsOpen } = useSidebar();
 
   // 加载自定义算法
   useEffect(() => {

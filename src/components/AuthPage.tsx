@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +13,59 @@ export const AuthPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const { toast } = useToast();
+
+  const handleTestLogin = async () => {
+    setIsLoading(true);
+    try {
+      // 使用测试凭据
+      const testEmail = 'test@example.com';
+      const testPassword = 'test123456';
+      
+      console.log('尝试测试登录:', { email: testEmail });
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: testEmail,
+        password: testPassword,
+      });
+
+      console.log('测试登录结果:', { data, error });
+
+      if (error) {
+        // 如果测试用户不存在，先注册
+        if (error.message.includes('Invalid login credentials')) {
+          console.log('测试用户不存在，尝试注册...');
+          const { error: signUpError } = await supabase.auth.signUp({
+            email: testEmail,
+            password: testPassword,
+          });
+          
+          if (signUpError) {
+            throw signUpError;
+          }
+          
+          toast({
+            title: "测试用户已创建",
+            description: "请使用 test@example.com / test123456 登录",
+          });
+          return;
+        }
+        throw error;
+      }
+
+      toast({
+        title: "测试登录成功",
+        description: "认证系统工作正常",
+      });
+    } catch (error: any) {
+      console.error('测试登录错误:', error);
+      toast({
+        title: "测试登录失败",
+        description: error.message || "认证系统可能有问题",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSignUp = async () => {
     if (!email || !password) {
@@ -66,10 +118,13 @@ export const AuthPage = () => {
 
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      console.log('尝试登录:', { email, password: '***' });
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
+
+      console.log('登录结果:', { data, error });
 
       if (error) {
         throw error;
@@ -80,6 +135,7 @@ export const AuthPage = () => {
         description: "欢迎使用 SPSS AI",
       });
     } catch (error: any) {
+      console.error('登录错误详情:', error);
       toast({
         title: "登录失败",
         description: error.message || "登录过程中出现错误",
@@ -146,6 +202,14 @@ export const AuthPage = () => {
                 ) : (
                   '登录'
                 )}
+              </Button>
+              <Button 
+                onClick={handleTestLogin} 
+                variant="outline"
+                className="w-full"
+                disabled={isLoading}
+              >
+                测试登录系统
               </Button>
             </TabsContent>
             
