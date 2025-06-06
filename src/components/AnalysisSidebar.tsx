@@ -42,6 +42,7 @@ import { analysisConfig } from '@/config/analysis';
 interface AnalysisSidebarProps {
   selectedAnalysis: string;
   onSelectAnalysis: (analysis: string) => void;
+  onLogoClick?: () => void;
 }
 
 interface Algorithm {
@@ -123,7 +124,8 @@ const defaultAnalysisCategories = [
 
 export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({ 
   selectedAnalysis, 
-  onSelectAnalysis 
+  onSelectAnalysis,
+  onLogoClick
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [customAlgorithms, setCustomAlgorithms] = useState<Algorithm[]>([]);
@@ -224,7 +226,7 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
       isCollapsed ? 'w-16' : 'w-64'
     }`}>
       {/* 顶部折叠区域 */}
-      <div className="flex items-center justify-between p-3 border-b border-gray-200 bg-gray-50">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
         <Button
           variant="ghost"
           size="sm"
@@ -239,14 +241,14 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
         </Button>
         
         {!isCollapsed && (
-          <div className="flex items-center space-x-2">
-            <div className="w-7 h-7 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-sm">
-              <span className="text-white text-sm font-bold">S</span>
+          <div 
+            className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={() => onLogoClick?.()}
+          >
+            <div className="w-4 h-4 bg-blue-600 rounded-sm flex items-center justify-center">
+              <span className="text-white text-xs font-bold">S</span>
             </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-bold text-blue-600">SPSSAI</span>
-              <span className="text-xs text-gray-500">统计科学</span>
-            </div>
+            <span className="text-blue-600 font-semibold">SPSSAI</span>
           </div>
         )}
       </div>
@@ -254,7 +256,7 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
       {!isCollapsed && (
         <>
           {/* 搜索区域 */}
-          <div className="p-4 border-b border-gray-200">
+          <div className="px-6 py-4 border-b border-gray-200">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
@@ -268,7 +270,7 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
           </div>
           
           {/* 分析方法列表 */}
-          <div className="px-2 overflow-y-auto max-h-[calc(100vh-180px)]">
+          <div className="px-4 overflow-y-auto max-h-[calc(100vh-180px)]">
             {filteredCategories.length === 0 ? (
               <div className="p-4 text-center text-gray-500 text-sm">
                 <Search className="h-8 w-8 mx-auto mb-2 text-gray-300" />
@@ -282,7 +284,7 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
               >
                 {filteredCategories.map((category) => (
                   <AccordionItem value={category.label} key={category.label}>
-                    <AccordionTrigger className="text-sm font-medium hover:no-underline px-2 py-3 hover:bg-gray-50 rounded-lg">
+                    <AccordionTrigger className="text-sm font-medium hover:no-underline px-2 py-3 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors">
                       {category.label}
                     </AccordionTrigger>
                     <AccordionContent className="pb-2">
@@ -290,11 +292,16 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
                         {category.items.map((item) => (
                           <div
                             key={item.key}
-                            onClick={() => onSelectAnalysis(item.key)}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              console.log('点击分析项:', item.key, item.title);
+                              onSelectAnalysis(item.key);
+                            }}
                             className={`group flex items-center justify-between p-2 text-sm rounded-lg cursor-pointer transition-colors ${
                               selectedAnalysis === item.key
                                 ? 'bg-blue-100 text-blue-700 border border-blue-200'
-                                : 'hover:bg-gray-50'
+                                : 'hover:bg-blue-50 hover:text-blue-700'
                             }`}
                           >
                             <div className="flex items-center space-x-2">
@@ -327,11 +334,16 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
                   key={item.key}
                   variant="ghost"
                   size="sm"
-                  onClick={() => onSelectAnalysis(item.key)}
-                  className={`w-full h-10 p-0 rounded-lg ${
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('点击折叠状态分析项:', item.key, item.title);
+                    onSelectAnalysis(item.key);
+                  }}
+                  className={`w-full h-10 p-0 rounded-lg transition-colors ${
                     selectedAnalysis === item.key
                       ? 'bg-blue-100 text-blue-700 border border-blue-200'
-                      : 'hover:bg-gray-100'
+                      : 'hover:bg-blue-50 hover:text-blue-700'
                   }`}
                   title={`${category.label} - ${item.title}`}
                 >

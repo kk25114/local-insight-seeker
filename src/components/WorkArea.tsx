@@ -24,9 +24,10 @@ interface WorkAreaProps {
   selectedAnalysis: string;
   uploadedData: any[];
   user: SupabaseUser | null;
+  onAuthRequired?: () => void;
 }
 
-export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, uploadedData = [], user }) => {
+export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, uploadedData = [], user, onAuthRequired }) => {
   const [datasets, setDatasets] = useState<DataSet[]>([]);
   const [selectedDataset, setSelectedDataset] = useState<string>('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -188,11 +189,36 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, uploadedDa
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
+            {!user && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+                <div className="flex items-start space-x-2">
+                  <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
+                  <div>
+                    <p className="text-sm text-amber-800">
+                      未登录用户只能查看界面和功能介绍。如需使用完整分析功能，请
+                      <span 
+                        className="font-medium cursor-pointer text-amber-900 hover:underline"
+                        onClick={() => onAuthRequired?.()}
+                      >
+                        登录
+                      </span>
+                      或
+                      <span 
+                        className="font-medium cursor-pointer text-amber-900 hover:underline"
+                        onClick={() => onAuthRequired?.()}
+                      >
+                        注册
+                      </span>。
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium mb-2">选择数据集</label>
-              <Select value={selectedDataset} onValueChange={setSelectedDataset}>
-                <SelectTrigger>
-                  <SelectValue placeholder="选择要分析的数据集" />
+              <Select value={selectedDataset} onValueChange={setSelectedDataset} disabled={!user}>
+                <SelectTrigger className={!user ? 'opacity-60 cursor-not-allowed' : ''}>
+                  <SelectValue placeholder={user ? "选择要分析的数据集" : "请登录后选择数据集"} />
                 </SelectTrigger>
                 <SelectContent>
                   {datasets.map((dataset) => (
@@ -265,11 +291,11 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, uploadedDa
             </div>
             <Button
               onClick={runAnalysis}
-              disabled={isAnalyzing || (!selectedDataset && (!uploadedData || uploadedData.length === 0))}
-              className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800"
+              disabled={!user || isAnalyzing || (!selectedDataset && (!uploadedData || uploadedData.length === 0))}
+              className={`w-full ${!user ? 'bg-gray-100 hover:bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
               size="lg"
             >
-              {isAnalyzing ? '分析中...' : '开始分析'}
+              {!user ? '请登录后开始分析' : isAnalyzing ? '分析中...' : '开始分析'}
             </Button>
           </CardContent>
         </Card>

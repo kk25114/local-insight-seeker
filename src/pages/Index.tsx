@@ -8,6 +8,7 @@ import { ChatWidget } from '@/components/ChatWidget';
 import { AlgorithmManagement } from '@/components/AlgorithmManagement';
 import { ModelManagement } from '@/components/ModelManagement';
 import { DataManagement } from '@/components/DataManagement';
+import { AboutPage } from '@/components/AboutPage';
 import { supabase } from '@/integrations/supabase/client';
 import type { User, Session } from '@supabase/supabase-js';
 
@@ -17,8 +18,21 @@ const Index = () => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [currentView, setCurrentView] = useState<'landing' | 'auth' | 'analysis' | 'algorithms' | 'models' | 'data'>('landing');
+  const [currentView, setCurrentView] = useState<'landing' | 'auth' | 'analysis' | 'algorithms' | 'models' | 'data' | 'about'>('analysis');
   const [error, setError] = useState<string | null>(null);
+
+  // 添加调试函数
+  const handleViewChange = (view: 'landing' | 'auth' | 'analysis' | 'algorithms' | 'models' | 'data' | 'about') => {
+    console.log('视图变化从', currentView, '到', view);
+    setCurrentView(view);
+  };
+
+  // 添加分析选择处理函数
+  const handleAnalysisSelect = (analysis: string) => {
+    console.log('选择分析方法:', analysis);
+    setSelectedAnalysis(analysis);
+    // 确保不会改变视图
+  };
 
   useEffect(() => {
     console.log('Index 组件正在加载...');
@@ -34,11 +48,7 @@ const Index = () => {
           
           // 如果用户已登录且当前在认证页面，跳转到分析页面
           if (session?.user && currentView === 'auth') {
-            setCurrentView('analysis');
-          }
-          // 如果用户已登录且当前在首页，跳转到分析页面
-          if (session?.user && currentView === 'landing') {
-            setCurrentView('analysis');
+            handleViewChange('analysis');
           }
         }
       );
@@ -50,10 +60,7 @@ const Index = () => {
         setUser(session?.user ?? null);
         setIsLoading(false);
         
-        // 如果有现有会话，直接跳转到分析页面
-        if (session?.user) {
-          setCurrentView('analysis');
-        }
+        // 用户信息已设置，保持当前视图
       }).catch((error) => {
         console.error('获取会话失败:', error);
         setError('获取会话失败');
@@ -66,7 +73,7 @@ const Index = () => {
       setError('应用初始化失败');
       setIsLoading(false);
     }
-  }, [currentView]);
+  }, []);
 
   // 错误状态
   if (error) {
@@ -110,15 +117,30 @@ const Index = () => {
     );
   }
 
-  // 显示首页 - 只有在明确请求时才显示
+  // 显示首页 - 只有在明确请求时才显示（已禁用，直接跳转到分析界面）
   if (currentView === 'landing') {
+    handleViewChange('analysis');
+    return null;
+  }
+
+  // 显示关于页面 - 不需要认证
+  if (currentView === 'about') {
+    console.log('正在渲染关于页面');
     return (
       <>
-        <LandingPage 
-          onGetStarted={() => user ? setCurrentView('analysis') : setCurrentView('auth')}
-          onLogin={() => setCurrentView('auth')}
-          onRegister={() => setCurrentView('auth')}
-        />
+        <div className="min-h-screen flex w-full bg-gray-50">
+          <div className="flex-1 flex flex-col">
+            <MainHeader 
+              onDataUpload={setUploadedData}
+              user={user}
+              currentView={currentView}
+              onViewChange={handleViewChange}
+            />
+            <main className="flex-1 p-6 overflow-auto">
+              <AboutPage onBackToAnalysis={() => handleViewChange('analysis')} />
+            </main>
+          </div>
+        </div>
         <ChatWidget />
       </>
     );
@@ -126,7 +148,7 @@ const Index = () => {
 
   // 如果没有用户但试图访问需要认证的页面，跳转到认证页面
   if (!user && (currentView === 'algorithms' || currentView === 'models' || currentView === 'data')) {
-    setCurrentView('auth');
+    handleViewChange('auth');
     return null;
   }
 
@@ -149,6 +171,7 @@ const Index = () => {
             selectedAnalysis={selectedAnalysis}
             uploadedData={uploadedData}
             user={user}
+            onAuthRequired={() => handleViewChange('auth')}
           />
         );
     }
@@ -161,7 +184,8 @@ const Index = () => {
           {currentView === 'analysis' && (
             <AnalysisSidebar 
               selectedAnalysis={selectedAnalysis}
-              onSelectAnalysis={setSelectedAnalysis}
+              onSelectAnalysis={handleAnalysisSelect}
+              onLogoClick={() => handleViewChange('analysis')}
             />
           )}
           <div className="flex-1 flex flex-col">
@@ -169,7 +193,7 @@ const Index = () => {
               onDataUpload={setUploadedData}
               user={user}
               currentView={currentView}
-              onViewChange={setCurrentView}
+              onViewChange={handleViewChange}
             />
             <main className="flex-1 p-6 overflow-auto">
               {renderContent()}

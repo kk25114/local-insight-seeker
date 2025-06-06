@@ -1,9 +1,8 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { MessageCircle, X, Send } from 'lucide-react';
+import { MessageCircle, X, Send, Maximize2, Minimize2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Message {
@@ -14,25 +13,86 @@ interface Message {
   isStreaming?: boolean;
 }
 
-// 简单的markdown渲染函数
+// 增强的markdown渲染函数
 const renderMarkdown = (text: string) => {
+  let html = text;
+
+  // 预处理：统一换行符
+  html = html.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+  // 处理代码块 (``` 多行代码块) - 必须在其他处理之前
+  html = html.replace(/```([a-zA-Z]*)\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+  
+  // 处理标题 (# ## ###) - 支持空格容错
+  html = html.replace(/^#{3}\s+(.*)$/gm, '<h3 class="text-lg font-semibold">$1</h3>');
+  html = html.replace(/^#{2}\s+(.*)$/gm, '<h2 class="text-xl font-semibold">$1</h2>');
+  html = html.replace(/^#{1}\s+(.*)$/gm, '<h1 class="text-2xl font-bold">$1</h1>');
+  
+  // 处理链接 [text](url) - 改进正则避免嵌套问题
+  html = html.replace(/\[([^\[\]]*)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-600 hover:text-blue-800 underline" target="_blank" rel="noopener noreferrer">$1</a>');
+  
+  // 处理粗体 **text** - 在列表之前处理
+  html = html.replace(/\*\*([^*\n]+?)\*\*/g, '<strong class="font-semibold">$1</strong>');
+  
+  // 处理斜体 *text* - 避免与列表符号冲突，使用更精确的正则
+  html = html.replace(/(?<!\*)\*([^*\n]+?)\*(?!\*)/g, '<em class="italic">$1</em>');
+  
+  // 处理无序列表 (- 或 * 开头) - 改进列表处理
+  const lines = html.split('\n');
+  const processedLines = [];
+  let inList = false;
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const isListItem = /^\s*[-*+]\s+(.+)$/.test(line);
+    
+    if (isListItem) {
+      if (!inList) {
+        processedLines.push('<ul>');
+        inList = true;
+      }
+      const match = line.match(/^\s*[-*+]\s+(.+)$/);
+      processedLines.push(`<li>• ${match[1]}</li>`);
+    } else if (inList && line.trim() === '') {
+      // 空行但仍在列表中，继续
+      continue;
+    } else {
+      if (inList) {
+        processedLines.push('</ul>');
+        inList = false;
+      }
+      processedLines.push(line);
+    }
+  }
+  
+  if (inList) {
+    processedLines.push('</ul>');
+  }
+  
+  html = processedLines.join('\n');
+  
+  // 处理有序列表 (1. 2. 3.)
+  html = html.replace(/^(\s*\d+\.)\s+(.+)$/gm, '<li>$1 $2</li>');
+  html = html.replace(/(<li>\d+\..*<\/li>\s*)+/g, '<ol class="list-decimal list-inside">$&</ol>');
+  
+  // 处理引用 (>)
+  html = html.replace(/^>\s*(.+)$/gm, '<blockquote class="border-l-4 border-gray-300 pl-4 py-1 bg-gray-50 italic">$1</blockquote>');
+  
+  // 处理行内代码 `code` - 必须在换行处理之前
+  html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+  
+  // 处理分割线
+  html = html.replace(/^---+$/gm, '<hr class="border-gray-300" />');
+  
   // 处理换行
-  const withBreaks = text.replace(/\n/g, '<br />');
+  html = html.replace(/\n/g, '<br />');
   
-  // 处理粗体
-  const withBold = withBreaks.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-  
-  // 处理斜体
-  const withItalic = withBold.replace(/\*(.*?)\*/g, '<em>$1</em>');
-  
-  // 处理代码块
-  const withCode = withItalic.replace(/`(.*?)`/g, '<code class="bg-gray-200 px-1 rounded text-xs">$1</code>');
-  
-  return withCode;
+  return html;
 };
 
 export const ChatWidget = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -254,19 +314,32 @@ export const ChatWidget = () => {
 
       {/* 聊天窗口 */}
       {isOpen && (
-        <div className="fixed bottom-6 right-6 z-50 w-80 h-96">
+        <div className={`fixed bottom-6 right-6 z-50 transition-all duration-300 ${
+          isExpanded ? 'w-[600px] h-[700px]' : 'w-80 h-96'
+        }`}>
           <Card className="h-full flex flex-col shadow-xl">
             <CardHeader className="p-3 bg-blue-600 text-white rounded-t-lg">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm">AI助手</CardTitle>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsOpen(false)}
-                  className="text-white hover:bg-blue-700 h-6 w-6 p-0"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+                <div className="flex items-center space-x-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsExpanded(!isExpanded)}
+                    className="text-white hover:bg-blue-700 h-6 w-6 p-0"
+                    title={isExpanded ? "缩小" : "放大"}
+                  >
+                    {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsOpen(false)}
+                    className="text-white hover:bg-blue-700 h-6 w-6 p-0"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             
@@ -279,14 +352,16 @@ export const ChatWidget = () => {
                     className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
                     <div
-                      className={`max-w-[80%] min-w-0 p-2 rounded-lg text-xs break-words overflow-wrap-anywhere ${
+                      className={`max-w-[80%] min-w-0 p-3 rounded-lg break-words overflow-wrap-anywhere ${
+                        isExpanded ? 'text-sm' : 'text-xs'
+                      } ${
                         message.role === 'user'
                           ? 'bg-blue-600 text-white'
                           : 'bg-gray-100 text-gray-900'
                       }`}
                     >
                       <div
-                        className="whitespace-pre-wrap leading-relaxed word-break"
+                        className="leading-relaxed markdown-content"
                         style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
                         dangerouslySetInnerHTML={{
                           __html: renderMarkdown(message.content)
@@ -300,7 +375,9 @@ export const ChatWidget = () => {
                 ))}
                 {isLoading && messages.filter(m => m.isStreaming).length === 0 && (
                   <div className="flex justify-start">
-                    <div className="bg-gray-100 p-2 rounded-lg text-xs max-w-[80%]">
+                    <div className={`bg-gray-100 p-2 rounded-lg max-w-[80%] ${
+                      isExpanded ? 'text-sm' : 'text-xs'
+                    }`}>
                       <div className="flex space-x-1">
                         <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
                         <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
@@ -318,7 +395,7 @@ export const ChatWidget = () => {
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
                   placeholder="输入消息..."
-                  className="flex-1 text-sm"
+                  className={`flex-1 ${isExpanded ? 'text-sm' : 'text-sm'}`}
                   onKeyPress={handleKeyPress}
                   disabled={isLoading}
                 />
