@@ -13,10 +13,10 @@ import {
   AccordionTrigger,
   AccordionContent,
 } from "@/components/ui/accordion";
-import { 
-  BarChart3, 
-  TrendingUp, 
-  PieChart, 
+import {
+  BarChart3,
+  TrendingUp,
+  PieChart,
   ScatterChart, 
   GitBranch,
   Calculator,
@@ -28,6 +28,13 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface AnalysisSidebarProps {
   selectedAnalysis: string;
@@ -114,6 +121,7 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [customAlgorithms, setCustomAlgorithms] = useState<Algorithm[]>([]);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [dropdownValue, setDropdownValue] = useState('option1');
 
   // 加载自定义算法
   useEffect(() => {
@@ -205,12 +213,27 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
 
       {!isCollapsed && (
         <>
-          <div className="p-4 pt-16 border-b border-gray-200">
+          <div className="p-4 pt-16 border-b border-gray-200 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <img src="/placeholder.svg" alt="Logo" className="h-6 w-6" />
+                <span className="font-semibold">SPSSAI</span>
+              </div>
+              <Select value={dropdownValue} onValueChange={setDropdownValue}>
+                <SelectTrigger className="w-28 h-8">
+                  <SelectValue placeholder="选择" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="option1">选项1</SelectItem>
+                  <SelectItem value="option2">选项2</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="flex items-center space-x-2">
               <Search className="h-4 w-4 text-gray-400" />
-              <input 
-                type="text" 
-                placeholder="搜索方法" 
+              <input
+                type="text"
+                placeholder="搜索方法"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="text-sm bg-transparent border-none outline-none flex-1 placeholder-gray-400"
@@ -261,28 +284,41 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
       )}
 
       {isCollapsed && (
-        <div className="p-2 pt-16 space-y-2">
-          {analysisCategories.slice(0, 8).map((category) => (
-            <div key={category.label} className="space-y-1">
-              {category.items.slice(0, 1).map((item) => (
-                <Button
-                  key={item.key}
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onSelectAnalysis(item.key)}
-                  className={`w-8 h-8 p-0 ${
-                    selectedAnalysis === item.key
-                      ? 'bg-blue-100 text-blue-700'
-                      : ''
-                  }`}
-                  title={item.title}
-                >
-                  <item.icon className="h-4 w-4" />
-                </Button>
-              ))}
-            </div>
-          ))}
-        </div>
+        <>
+          <div className="p-2 pt-16 space-y-2">
+            {analysisCategories.slice(0, 8).map((category) => (
+              <div key={category.label} className="space-y-1">
+                {category.items.slice(0, 1).map((item) => (
+                  <Button
+                    key={item.key}
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onSelectAnalysis(item.key)}
+                    className={`w-8 h-8 p-0 ${
+                      selectedAnalysis === item.key
+                        ? 'bg-blue-100 text-blue-700'
+                        : ''
+                    }`}
+                    title={item.title}
+                  >
+                    <item.icon className="h-4 w-4" />
+                  </Button>
+                ))}
+              </div>
+            ))}
+          </div>
+          <div className="absolute top-4 left-[calc(100%+0.5rem)]">
+            <Select value={dropdownValue} onValueChange={setDropdownValue}>
+              <SelectTrigger className="w-28 h-8">
+                <SelectValue placeholder="选择" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="option1">选项1</SelectItem>
+                <SelectItem value="option2">选项2</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </>
       )}
     </div>
   );
