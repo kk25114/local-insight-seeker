@@ -24,10 +24,13 @@ import {
   FileText,
   Search,
   MoreHorizontal,
-  Menu
+  Menu,
+  Info
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { algorithmInfo } from '@/lib/algorithmInfo';
 
 interface AnalysisSidebarProps {
   selectedAnalysis: string;
@@ -236,20 +239,51 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
                     </AccordionTrigger>
                     <AccordionContent className="px-0">
                       <div className="space-y-1">
-                        {category.items.map((item) => (
-                          <button
-                            key={item.key}
-                            onClick={() => onSelectAnalysis(item.key)}
-                            className={`w-full flex items-center justify-start text-sm py-2 px-2 rounded-md transition-colors ${
-                              selectedAnalysis === item.key
-                                ? 'bg-blue-100 text-blue-700'
-                                : 'hover:bg-gray-100'
-                            }`}
-                          >
-                            <item.icon className="h-4 w-4 mr-2" />
-                            <span>{item.title}</span>
-                          </button>
-                        ))}
+                        {category.items.map((item) => {
+                          const info = algorithmInfo[item.key as keyof typeof algorithmInfo];
+                          return (
+                            <div key={item.key} className="flex items-center justify-between">
+                              <button
+                                onClick={() => onSelectAnalysis(item.key)}
+                                className={`flex-1 flex items-center justify-start text-sm py-2 px-2 rounded-md transition-colors ${
+                                  selectedAnalysis === item.key
+                                    ? 'bg-blue-100 text-blue-700'
+                                    : 'hover:bg-gray-100'
+                                }`}
+                              >
+                                <item.icon className="h-4 w-4 mr-2" />
+                                <span>{item.title}</span>
+                              </button>
+                              {info && (
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="ml-1 h-5 w-5 p-0"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <Info className="h-4 w-4 text-gray-500" />
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-80" onOpenAutoFocus={(e) => e.preventDefault()}>
+                                    <h4 className="font-medium mb-2">{info.title}</h4>
+                                    <p className="text-sm mb-2">{info.description}</p>
+                                    <p className="text-sm text-gray-600 mb-1">示例：{info.example}</p>
+                                    <div className="mb-1">
+                                      <p className="text-xs text-gray-500">数据样例：</p>
+                                      <pre className="whitespace-pre-wrap bg-gray-100 p-2 rounded text-xs">{info.sampleData}</pre>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs text-gray-500">返回结果：</p>
+                                      <pre className="whitespace-pre-wrap bg-gray-100 p-2 rounded text-xs">{info.resultExample}</pre>
+                                    </div>
+                                  </PopoverContent>
+                                </Popover>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </AccordionContent>
                   </AccordionItem>
