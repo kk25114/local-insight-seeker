@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   Sidebar,
@@ -214,21 +213,6 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
       {!isCollapsed && (
         <>
           <div className="p-4 pt-16 border-b border-gray-200 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <img src="/placeholder.svg" alt="Logo" className="h-6 w-6" />
-                <span className="font-semibold">SPSSAI</span>
-              </div>
-              <Select value={dropdownValue} onValueChange={setDropdownValue}>
-                <SelectTrigger className="w-28 h-8">
-                  <SelectValue placeholder="选择" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="option1">选项1</SelectItem>
-                  <SelectItem value="option2">选项2</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
             <div className="flex items-center space-x-2">
               <Search className="h-4 w-4 text-gray-400" />
               <input
