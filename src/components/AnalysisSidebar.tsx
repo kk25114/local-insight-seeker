@@ -73,8 +73,6 @@ const defaultAnalysisCategories = [
       { title: "交叉(列联)", icon: GitBranch, key: "crosstab" },
       { title: "相关", icon: ScatterChart, key: "correlation" },
       { title: "线性回归", icon: TrendingUp, key: "regression" },
-      { title: "方差", icon: Calculator, key: "anova" },
-      { title: "独立性检验", icon: MoreHorizontal, key: "independence" }
     ]
   },
   {
@@ -165,7 +163,11 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
         return;
       }
 
-      setCustomAlgorithms(data || []);
+      // 移除不需要的分析方法
+      const toRemove = ["描述性统计", "相关分析", "线性回归", "频数分析", "方差分析"];
+      const filteredData = (data || []).filter(algo => !toRemove.includes(algo.name));
+      
+      setCustomAlgorithms(filteredData);
     } catch (error) {
       console.error('加载自定义算法失败:', error);
     }
