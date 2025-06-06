@@ -5,6 +5,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarTrigger
 } from "@/components/ui/sidebar";
 import {
   Accordion,
@@ -229,14 +230,15 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
       isCollapsed ? 'w-12' : 'w-64'
     }`}>
       {/* 简单的菜单按钮 - 左侧位置 */}
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => setIsCollapsed(!isCollapsed)}
-        className="absolute left-3 top-4 z-10 h-6 w-6 rounded-sm p-0"
-      >
-        <Menu className="h-4 w-4" />
-      </Button>
+      <SidebarTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="absolute left-3 top-4 z-10 h-6 w-6 rounded-sm p-0"
+        >
+          <Menu className="h-4 w-4" />
+        </Button>
+      </SidebarTrigger>
 
       {!isCollapsed && (
         <>
