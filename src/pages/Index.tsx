@@ -23,12 +23,51 @@ const Index = () => {
 
   useEffect(() => {
     console.log('Index 组件正在加载...');
-    // 简单的加载延迟
-    setTimeout(() => {
+    
+    try {
+      // 设置认证状态监听器
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        (event, session) => {
+          console.log('认证状态变化:', { event, session });
+          setSession(session);
+          setUser(session?.user ?? null);
+          setIsLoading(false);
+          
+          // 如果用户已登录且当前在认证页面，跳转到分析页面
+          if (session?.user && currentView === 'auth') {
+            setCurrentView('analysis');
+          }
+          // 如果用户已登录且当前在首页，跳转到分析页面
+          if (session?.user && currentView === 'landing') {
+            setCurrentView('analysis');
+          }
+        }
+      );
+
+      // 检查现有会话
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        console.log('现有会话:', session);
+        setSession(session);
+        setUser(session?.user ?? null);
+        setIsLoading(false);
+        
+        // 如果有现有会话，直接跳转到分析页面
+        if (session?.user) {
+          setCurrentView('analysis');
+        }
+      }).catch((error) => {
+        console.error('获取会话失败:', error);
+        setError('获取会话失败');
+        setIsLoading(false);
+      });
+
+      return () => subscription.unsubscribe();
+    } catch (error) {
+      console.error('初始化失败:', error);
+      setError('应用初始化失败');
       setIsLoading(false);
-      console.log('Index 组件加载完成');
-    }, 1000);
-  }, []);
+    }
+  }, [currentView]);
 
   // 错误状态
   if (error) {
@@ -75,50 +114,14 @@ const Index = () => {
   // 显示首页 - 只有在明确请求时才显示
   if (currentView === 'landing') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-blue-600 mb-4">SPSS AI</h1>
-            <p className="text-xl text-gray-600">统计科学 — 点就好</p>
-          </div>
-          
-          <div className="bg-white rounded-lg shadow-lg p-8">
-            <h2 className="text-2xl font-semibold text-gray-800 mb-4">欢迎使用数据分析平台</h2>
-            <p className="text-gray-600 mb-6">
-              这是一个强大的统计分析工具，帮助您快速进行数据分析和可视化。
-            </p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="text-center p-4 border rounded-lg">
-                <div className="text-3xl mb-2">📊</div>
-                <h3 className="font-semibold mb-2">数据分析</h3>
-                <p className="text-sm text-gray-600">强大的统计分析功能</p>
-              </div>
-              
-              <div className="text-center p-4 border rounded-lg">
-                <div className="text-3xl mb-2">📈</div>
-                <h3 className="font-semibold mb-2">数据可视化</h3>
-                <p className="text-sm text-gray-600">美观的图表和报告</p>
-              </div>
-              
-              <div className="text-center p-4 border rounded-lg">
-                <div className="text-3xl mb-2">🤖</div>
-                <h3 className="font-semibold mb-2">AI 辅助</h3>
-                <p className="text-sm text-gray-600">智能分析建议</p>
-              </div>
-            </div>
-            
-            <div className="mt-8 text-center">
-              <button 
-                onClick={() => setCurrentView('auth')}
-                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                开始使用
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <>
+        <LandingPage 
+          onGetStarted={() => user ? setCurrentView('analysis') : setCurrentView('auth')}
+          onLogin={() => setCurrentView('auth')}
+          onRegister={() => setCurrentView('auth')}
+        />
+        <ChatWidget />
+      </>
     );
   }
 
