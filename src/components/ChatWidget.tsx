@@ -6,6 +6,9 @@ import { Input } from '@/components/ui/input';
 import { MessageCircle, X, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+
 interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -83,9 +86,6 @@ export const ChatWidget = () => {
 
     try {
       console.log('发送聊天请求，消息内容:', currentInput);
-      
-      const supabaseUrl = "https://nizrlyekwwnujsvcjzwj.supabase.co";
-      const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5penJseWVrd3dudWpzdmNqendqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg3NTA1MTgsImV4cCI6MjA2NDMyNjUxOH0.q6rt3lQTTotcxUJ3hPnluovTisuSQBorlutUflb9nPA";
       
       const response = await fetch(`${supabaseUrl}/functions/v1/analyze-data`, {
         method: 'POST',

@@ -206,6 +206,72 @@ serve(async (req) => {
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
+    } else if (provider === 'gemini') {
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model_id}:${stream ? 'streamGenerateContent' : 'generateContent'}?key=${apiKey}`
+
+      response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            { role: 'user', parts: [{ text: prompt }] }
+          ]
+        }),
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`Gemini API 错误: ${response.status} - ${errorText}`)
+      }
+
+      if (stream) {
+        const readable = new ReadableStream({
+          async start(controller) {
+            const reader = response.body?.getReader()
+            if (!reader) return
+
+            try {
+              while (true) {
+                const { done, value } = await reader.read()
+                if (done) break
+
+                const chunk = new TextDecoder().decode(value)
+                const lines = chunk.split('\n')
+                for (const line of lines) {
+                  if (line.startsWith('data: ')) {
+                    const data = line.slice(6)
+                    if (data === '[DONE]') continue
+                    try {
+                      const parsed = JSON.parse(data)
+                      const content = parsed.candidates?.[0]?.content?.parts?.[0]?.text
+                      if (content) {
+                        controller.enqueue(`data: ${JSON.stringify({ content })}\n\n`)
+                      }
+                    } catch (_) {}
+                  }
+                }
+              }
+            } finally {
+              controller.close()
+            }
+          }
+        })
+
+        return new Response(readable, {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'text/plain; charset=utf-8',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+          }
+        })
+      } else {
+        result = await response.json()
+        return new Response(
+          JSON.stringify({ content: result.candidates?.[0]?.content?.parts?.[0]?.text || '分析完成但未收到结果' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
     } else if (provider === 'xai') {
       console.log('开始调用 xAI API...')
       
