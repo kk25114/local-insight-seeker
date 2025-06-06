@@ -1,15 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Plus, Upload, Trash2, Eye, Database, FileText } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Upload, Download, Trash2, Eye, Plus, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import type { User } from '@supabase/supabase-js';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 interface DataSet {
   id: string;
@@ -17,115 +16,133 @@ interface DataSet {
   description: string;
   data: any[];
   created_at: string;
+  updated_at: string;
   user_id: string;
 }
 
 interface DataManagementProps {
-  user: User;
-  onDataSelect?: (data: any[]) => void;
+  user: SupabaseUser | null;
 }
 
-export const DataManagement: React.FC<DataManagementProps> = ({ user, onDataSelect }) => {
+export const DataManagement: React.FC<DataManagementProps> = ({ user }) => {
   const [datasets, setDatasets] = useState<DataSet[]>([]);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [datasetName, setDatasetName] = useState('');
-  const [datasetDescription, setDatasetDescription] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [newDataset, setNewDataset] = useState({
+    name: '',
+    description: '',
+    file: null as File | null
+  });
   const { toast } = useToast();
 
   useEffect(() => {
-    loadDatasets();
-  }, []);
+    if (user) {
+      loadDatasets();
+    }
+  }, [user]);
 
   const loadDatasets = async () => {
     try {
-      setIsLoading(true);
       const { data, error } = await supabase
         .from('datasets')
         .select('*')
-        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setDatasets(data || []);
+
+      // Transform the data to match our DataSet interface
+      const transformedData: DataSet[] = (data || []).map(item => ({
+        ...item,
+        data: Array.isArray(item.data) ? item.data : []
+      }));
+
+      setDatasets(transformedData);
     } catch (error) {
       console.error('加载数据集失败:', error);
       toast({
         title: "加载失败",
-        description: "无法获取数据集列表",
+        description: "无法加载数据集列表",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  const handleFileUpload = async () => {
-    if (!uploadFile || !datasetName.trim()) {
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setNewDataset(prev => ({ ...prev, file }));
+    }
+  };
+
+  const uploadDataset = async () => {
+    if (!newDataset.file || !newDataset.name || !user) {
       toast({
-        title: "请填写完整信息",
-        description: "请选择文件并输入数据集名称",
+        title: "信息不完整",
+        description: "请填写数据集名称并选择文件",
         variant: "destructive",
       });
       return;
     }
 
+    setIsUploading(true);
     try {
-      const text = await uploadFile.text();
-      let data;
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          let data: any[] = [];
+          
+          if (newDataset.file?.name.endsWith('.json')) {
+            data = JSON.parse(e.target?.result as string);
+          } else if (newDataset.file?.name.endsWith('.csv')) {
+            // 简单的CSV解析，实际项目中可能需要更完善的解析
+            const text = e.target?.result as string;
+            const lines = text.split('\n');
+            const headers = lines[0].split(',');
+            data = lines.slice(1).map(line => {
+              const values = line.split(',');
+              const obj: any = {};
+              headers.forEach((header, index) => {
+                obj[header.trim()] = values[index]?.trim();
+              });
+              return obj;
+            });
+          }
 
-      if (uploadFile.name.endsWith('.json')) {
-        data = JSON.parse(text);
-      } else if (uploadFile.name.endsWith('.csv')) {
-        const lines = text.split('\n').filter(line => line.trim());
-        const headers = lines[0].split(',').map(h => h.trim());
-        data = lines.slice(1).map(line => {
-          const values = line.split(',').map(v => v.trim());
-          const row: any = {};
-          headers.forEach((header, index) => {
-            row[header] = values[index] || '';
+          const { error } = await supabase
+            .from('datasets')
+            .insert({
+              name: newDataset.name,
+              description: newDataset.description,
+              data: data,
+              user_id: user.id
+            });
+
+          if (error) throw error;
+
+          toast({
+            title: "上传成功",
+            description: `数据集 ${newDataset.name} 已成功上传`,
           });
-          return row;
-        });
-      } else {
-        throw new Error('不支持的文件格式');
-      }
 
-      const { error } = await supabase
-        .from('datasets')
-        .insert({
-          name: datasetName,
-          description: datasetDescription,
-          data: data,
-          user_id: user.id
-        });
-
-      if (error) throw error;
-
-      toast({
-        title: "上传成功",
-        description: "数据集已成功保存",
-      });
-
-      setIsDialogOpen(false);
-      setDatasetName('');
-      setDatasetDescription('');
-      setUploadFile(null);
-      loadDatasets();
+          setNewDataset({ name: '', description: '', file: null });
+          loadDatasets();
+        } catch (error) {
+          throw error;
+        }
+      };
+      reader.readAsText(newDataset.file);
     } catch (error) {
-      console.error('上传失败:', error);
+      console.error('上传数据集失败:', error);
       toast({
         title: "上传失败",
-        description: error instanceof Error ? error.message : "数据集上传失败",
+        description: "数据集上传失败，请检查文件格式",
         variant: "destructive",
       });
+    } finally {
+      setIsUploading(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('确定要删除这个数据集吗？')) return;
-
+  const deleteDataset = async (id: string) => {
     try {
       const { error } = await supabase
         .from('datasets')
@@ -138,150 +155,115 @@ export const DataManagement: React.FC<DataManagementProps> = ({ user, onDataSele
         title: "删除成功",
         description: "数据集已成功删除",
       });
+
       loadDatasets();
     } catch (error) {
-      console.error('删除失败:', error);
+      console.error('删除数据集失败:', error);
       toast({
         title: "删除失败",
-        description: "删除数据集时出现错误",
+        description: "无法删除数据集",
         variant: "destructive",
-      });
-    }
-  };
-
-  const handleSelect = (dataset: DataSet) => {
-    if (onDataSelect) {
-      onDataSelect(dataset.data);
-      toast({
-        title: "数据源已选择",
-        description: `已选择数据集: ${dataset.name}`,
       });
     }
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <Database className="h-6 w-6 text-blue-600" />
-          <h1 className="text-2xl font-bold">数据管理</h1>
-        </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              上传数据集
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>上传新数据集</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="name">数据集名称</Label>
-                <Input
-                  id="name"
-                  value={datasetName}
-                  onChange={(e) => setDatasetName(e.target.value)}
-                  placeholder="输入数据集名称"
-                />
-              </div>
-              <div>
-                <Label htmlFor="description">描述</Label>
-                <Input
-                  id="description"
-                  value={datasetDescription}
-                  onChange={(e) => setDatasetDescription(e.target.value)}
-                  placeholder="输入数据集描述（可选）"
-                />
-              </div>
-              <div>
-                <Label htmlFor="file">选择文件</Label>
-                <Input
-                  id="file"
-                  type="file"
-                  accept=".csv,.json"
-                  onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-                />
-                <p className="text-sm text-gray-500 mt-1">
-                  支持 CSV 和 JSON 格式
-                </p>
-              </div>
-              <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  取消
-                </Button>
-                <Button onClick={handleFileUpload}>
-                  <Upload className="h-4 w-4 mr-2" />
-                  上传
-                </Button>
-              </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Upload className="h-5 w-5" />
+            <span>上传新数据集</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">数据集名称</label>
+              <Input
+                value={newDataset.name}
+                onChange={(e) => setNewDataset(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="输入数据集名称"
+              />
             </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">描述</label>
+              <Textarea
+                value={newDataset.description}
+                onChange={(e) => setNewDataset(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="输入数据集描述"
+                rows={3}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">选择文件</label>
+              <Input
+                type="file"
+                accept=".csv,.json,.xlsx"
+                onChange={handleFileUpload}
+              />
+            </div>
+            <Button
+              onClick={uploadDataset}
+              disabled={isUploading}
+              className="w-full"
+            >
+              {isUploading ? '上传中...' : '上传数据集'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>数据集列表 ({datasets.length})</CardTitle>
+          <CardTitle className="flex items-center space-x-2">
+            <FileText className="h-5 w-5" />
+            <span>数据集列表</span>
+            <Badge variant="outline">{datasets.length}</Badge>
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
-            <div className="text-center py-4">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-2 text-gray-600">加载中...</p>
-            </div>
-          ) : datasets.length === 0 ? (
-            <div className="text-center py-8">
-              <FileText className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">暂无数据集，点击上方按钮上传新数据集</p>
+          {datasets.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              暂无数据集，请上传您的第一个数据集
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>名称</TableHead>
-                  <TableHead>描述</TableHead>
-                  <TableHead>记录数</TableHead>
-                  <TableHead>创建时间</TableHead>
-                  <TableHead>操作</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {datasets.map((dataset) => (
-                  <TableRow key={dataset.id}>
-                    <TableCell className="font-medium">{dataset.name}</TableCell>
-                    <TableCell>{dataset.description || '无描述'}</TableCell>
-                    <TableCell>{Array.isArray(dataset.data) ? dataset.data.length : 0}</TableCell>
-                    <TableCell>
-                      {new Date(dataset.created_at).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleSelect(dataset)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDelete(dataset.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <div className="space-y-4">
+              {datasets.map((dataset) => (
+                <div
+                  key={dataset.id}
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+                >
+                  <div className="flex-1">
+                    <h3 className="font-medium">{dataset.name}</h3>
+                    <p className="text-sm text-gray-500">{dataset.description}</p>
+                    <div className="flex items-center space-x-4 mt-2 text-xs text-gray-400">
+                      <span>记录数: {dataset.data.length}</span>
+                      <span>创建时间: {new Date(dataset.created_at).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button variant="ghost" size="sm">
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm">
+                      <Download className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => deleteDataset(dataset.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>
     </div>
   );
 };
+

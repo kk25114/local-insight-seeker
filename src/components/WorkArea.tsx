@@ -1,40 +1,14 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PlayCircle, FileText, BarChart3, Settings, Database } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Play, Database, FileText, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { AnalysisQueue, type AnalysisQueueRef } from '@/components/AnalysisQueue';
-import type { User } from '@supabase/supabase-js';
-
-interface WorkAreaProps {
-  selectedAnalysis: string;
-  data: any[];
-  user: User | null;
-}
-
-interface AIModel {
-  id: string;
-  name: string;
-  provider: string;
-  model_id: string;
-  api_key_name: string;
-  is_active: boolean;
-}
-
-interface AnalysisAlgorithm {
-  id: string;
-  name: string;
-  category: string;
-  description: string;
-  prompt_template: string;
-  parameters: any;
-}
+import { AnalysisQueue, AnalysisQueueRef } from './AnalysisQueue';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 interface DataSet {
   id: string;
@@ -42,206 +16,201 @@ interface DataSet {
   description: string;
   data: any[];
   created_at: string;
+  updated_at: string;
   user_id: string;
 }
 
-export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, data, user }) => {
-  const [analysisResults, setAnalysisResults] = useState<string>('');
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<string>('');
-  const [selectedDataset, setSelectedDataset] = useState<string>('');
-  const [aiModels, setAiModels] = useState<AIModel[]>([]);
-  const [algorithms, setAlgorithms] = useState<AnalysisAlgorithm[]>([]);
+interface WorkAreaProps {
+  selectedAnalysis: string;
+  uploadedData: any[];
+  user: SupabaseUser | null;
+}
+
+// 分析方法配置
+const analysisConfig = {
+  frequency: {
+    title: '频数分析',
+    description: '统计数据中各值出现的频次',
+    example: '适用于分析问卷中选择题的分布情况'
+  },
+  crosstab: {
+    title: '交叉表分析',
+    description: '分析两个或多个分类变量之间的关系',
+    example: '适用于分析性别与购买偏好的关系'
+  },
+  descriptives: {
+    title: '描述性统计',
+    description: '计算均值、标准差、最大值、最小值等基本统计量',
+    example: '适用于了解数据的基本分布特征'
+  },
+  correlation: {
+    title: '相关性分析',
+    description: '分析变量之间的线性相关关系',
+    example: '适用于分析收入与消费支出的关系'
+  },
+  regression: {
+    title: '线性回归分析',
+    description: '建立因变量与自变量之间的线性关系模型',
+    example: '适用于预测房价与面积、位置等因素的关系'
+  },
+  anova: {
+    title: '方差分析',
+    description: '比较多个组之间的均值差异',
+    example: '适用于比较不同教学方法的效果差异'
+  },
+  ttest: {
+    title: 'T检验',
+    description: '比较两个组的均值是否存在显著差异',
+    example: '适用于比较两种药物的治疗效果'
+  },
+  reliability: {
+    title: '信度分析',
+    description: '评估问卷或量表的内部一致性',
+    example: '适用于验证问卷的可靠性'
+  }
+};
+
+export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, uploadedData, user }) => {
   const [datasets, setDatasets] = useState<DataSet[]>([]);
-  const [currentData, setCurrentData] = useState<any[]>(data);
+  const [selectedDataset, setSelectedDataset] = useState<string>('');
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const { toast } = useToast();
-  const queueRef = useRef<AnalysisQueueRef>(null);
+  const analysisQueueRef = useRef<AnalysisQueueRef>(null);
 
   useEffect(() => {
-    loadAIModels();
-    loadAlgorithms();
     if (user) {
       loadDatasets();
     }
   }, [user]);
 
-  useEffect(() => {
-    setCurrentData(data);
-  }, [data]);
-
-  const loadAIModels = async () => {
-    try {
-      const { data: models, error } = await supabase
-        .from('ai_models')
-        .select('*')
-        .eq('is_active', true)
-        .order('name');
-
-      if (error) throw error;
-      setAiModels(models || []);
-      if (models && models.length > 0) {
-        setSelectedModel(models[0].id);
-      }
-    } catch (error) {
-      console.error('加载模型失败:', error);
-      toast({
-        title: "加载模型失败",
-        description: "无法获取可用的AI模型",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const loadAlgorithms = async () => {
-    try {
-      const { data: algos, error } = await supabase
-        .from('analysis_algorithms')
-        .select('*')
-        .order('category', { ascending: true })
-        .order('name', { ascending: true });
-
-      if (error) throw error;
-      setAlgorithms(algos || []);
-    } catch (error) {
-      console.error('加载算法失败:', error);
-    }
-  };
-
   const loadDatasets = async () => {
-    if (!user) return;
-    
     try {
-      const { data: ds, error } = await supabase
+      const { data, error } = await supabase
         .from('datasets')
         .select('*')
-        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setDatasets(ds || []);
+
+      // Transform the data to match our DataSet interface
+      const transformedData: DataSet[] = (data || []).map(item => ({
+        ...item,
+        data: Array.isArray(item.data) ? item.data : []
+      }));
+
+      setDatasets(transformedData);
     } catch (error) {
       console.error('加载数据集失败:', error);
-    }
-  };
-
-  const handleDatasetChange = (datasetId: string) => {
-    setSelectedDataset(datasetId);
-    if (datasetId === 'uploaded') {
-      setCurrentData(data);
       toast({
-        title: "数据源已切换",
-        description: "已选择上传的数据",
+        title: "加载失败",
+        description: "无法加载数据集列表",
+        variant: "destructive",
       });
-    } else {
-      const dataset = datasets.find(ds => ds.id === datasetId);
-      if (dataset) {
-        setCurrentData(dataset.data);
-        toast({
-          title: "数据源已切换",
-          description: `已选择数据集: ${dataset.name}`,
-        });
-      }
     }
   };
 
   const runAnalysis = async () => {
-    if (!selectedModel) {
+    if (!selectedAnalysis) {
       toast({
-        title: "请选择AI模型",
-        description: "需要选择一个AI模型来进行数据分析",
+        title: "请选择分析方法",
+        description: "请从左侧选择要进行的分析方法",
         variant: "destructive",
       });
       return;
     }
 
-    if (currentData.length === 0) {
+    let dataToAnalyze: any[] = [];
+    let dataSourceName = '';
+
+    if (selectedDataset) {
+      const dataset = datasets.find(d => d.id === selectedDataset);
+      if (dataset) {
+        dataToAnalyze = dataset.data;
+        dataSourceName = dataset.name;
+      }
+    } else if (uploadedData.length > 0) {
+      dataToAnalyze = uploadedData;
+      dataSourceName = '上传的数据';
+    }
+
+    if (dataToAnalyze.length === 0) {
       toast({
-        title: "请先选择数据源",
-        description: "需要数据才能进行分析",
+        title: "没有可分析的数据",
+        description: "请选择数据集或上传数据文件",
         variant: "destructive",
       });
       return;
     }
+
+    const analysisInfo = analysisConfig[selectedAnalysis as keyof typeof analysisConfig];
+    const taskName = `${analysisInfo?.title || selectedAnalysis} - ${dataSourceName}`;
 
     // 添加到分析队列
-    const taskId = queueRef.current?.addTask(`${getAnalysisName(selectedAnalysis)} - ${new Date().toLocaleTimeString()}`);
-    if (taskId) {
-      queueRef.current?.updateTask(taskId, { status: 'running' });
-    }
+    const taskId = analysisQueueRef.current?.addTask(taskName);
 
     setIsAnalyzing(true);
-    console.log("开始分析:", selectedAnalysis);
 
     try {
-      // 获取选中的算法
-      const algorithm = algorithms.find(algo => 
-        algo.name === getAnalysisName(selectedAnalysis)
-      );
-      
-      if (!algorithm) {
-        throw new Error('未找到对应的分析算法');
+      // 模拟分析过程
+      if (taskId) {
+        analysisQueueRef.current?.updateTask(taskId, { status: 'running', progress: 10 });
       }
 
-      // 获取选中的模型信息
-      const model = aiModels.find(m => m.id === selectedModel);
-      if (!model) {
-        throw new Error('未找到对应的AI模型');
-      }
-
-      // 构建分析请求，使用数据库中的prompt模板
-      const analysisPrompt = algorithm.prompt_template.replace('{data}', JSON.stringify(currentData, null, 2));
-
-      console.log("使用模型:", model.name);
-      console.log("使用算法:", algorithm.name);
-      
-      // 调用后端Edge Function进行分析
+      // 调用分析API
       const { data: result, error } = await supabase.functions.invoke('analyze-data', {
         body: {
-          prompt: analysisPrompt,
-          model_id: model.model_id,
-          provider: model.provider,
-          api_key_name: model.api_key_name
+          data: dataToAnalyze,
+          analysis_type: selectedAnalysis,
+          user_id: user?.id
         }
       });
 
-      if (error) {
-        throw error;
-      }
-      
-      const analysisResult = result?.content || '分析完成，但未收到结果';
-      
-      setAnalysisResults(analysisResult);
+      if (error) throw error;
+
+      // 更新进度
       if (taskId) {
-        queueRef.current?.updateTask(taskId, { 
-          status: 'completed', 
-          result: analysisResult,
-          completedAt: new Date()
-        });
-      }
-      
-      toast({
-        title: "分析完成",
-        description: "数据分析已成功完成",
-      });
-    } catch (error) {
-      console.error('分析错误:', error);
-      
-      let errorMessage = "分析过程中出现错误";
-      if (error instanceof Error) {
-        errorMessage = error.message;
+        analysisQueueRef.current?.updateTask(taskId, { status: 'running', progress: 80 });
       }
 
-      if (taskId) {
-        queueRef.current?.updateTask(taskId, { 
-          status: 'failed', 
-          error: errorMessage,
-          completedAt: new Date()
+      // 保存分析结果
+      if (user) {
+        await supabase.from('analysis_logs').insert({
+          user_id: user.id,
+          analysis_type: selectedAnalysis,
+          dataset_id: selectedDataset || null,
+          result: result,
+          status: 'completed'
         });
       }
+
+      // 完成任务
+      if (taskId) {
+        analysisQueueRef.current?.updateTask(taskId, { 
+          status: 'completed', 
+          progress: 100, 
+          completedAt: new Date(),
+          result: JSON.stringify(result)
+        });
+      }
+
+      toast({
+        title: "分析完成",
+        description: `${analysisInfo?.title || selectedAnalysis}分析已完成`,
+      });
+
+    } catch (error) {
+      console.error('分析失败:', error);
       
+      if (taskId) {
+        analysisQueueRef.current?.updateTask(taskId, { 
+          status: 'failed', 
+          error: error instanceof Error ? error.message : '分析过程中出现错误'
+        });
+      }
+
       toast({
         title: "分析失败",
-        description: errorMessage,
+        description: "分析过程中出现错误，请稍后重试",
         variant: "destructive",
       });
     } finally {
@@ -249,239 +218,106 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, data, user
     }
   };
 
-  const getAnalysisName = (key: string) => {
-    const names: { [key: string]: string } = {
-      frequency: '频数分析',
-      descriptives: '描述性统计',
-      correlation: '相关分析',
-      regression: '线性回归',
-      ttest: 'T检验',
-      anova: '方差分析',
-      crosstab: '交叉列联',
-      reliability: '信度分析',
-      factor: '因子分析'
-    };
-    return names[key] || '统计分析';
-  };
+  const currentAnalysis = analysisConfig[selectedAnalysis as keyof typeof analysisConfig];
 
   return (
-    <main className="flex-1 p-6 overflow-auto">
-      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* 主要工作区域 */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* 工具栏 */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Select defaultValue="11">
-                <SelectTrigger className="w-20">
-                  <SelectValue />
+    <div className="space-y-6">
+      {/* 数据源选择 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Database className="h-5 w-5" />
+            <span>数据源选择</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">选择数据集</label>
+              <Select value={selectedDataset} onValueChange={setSelectedDataset}>
+                <SelectTrigger>
+                  <SelectValue placeholder="选择要分析的数据集" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="11">11</SelectItem>
-                  <SelectItem value="12">12</SelectItem>
-                  <SelectItem value="14">14</SelectItem>
+                  {datasets.map((dataset) => (
+                    <SelectItem key={dataset.id} value={dataset.id}>
+                      <div className="flex flex-col">
+                        <span>{dataset.name}</span>
+                        <span className="text-xs text-gray-500">
+                          {dataset.data.length} 条记录
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-              <span className="text-sm text-gray-500">筛选样本</span>
             </div>
-            
-            <Button 
-              onClick={runAnalysis}
-              disabled={isAnalyzing}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              {isAnalyzing ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  分析中...
-                </>
-              ) : (
-                <>
-                  <PlayCircle className="h-4 w-4 mr-2" />
-                  开始分析
-                </>
-              )}
-            </Button>
-          </div>
 
-          {/* 数据源选择 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center text-lg">
-                <Database className="h-5 w-5 mr-2" />
-                数据源选择
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="dataset">选择数据集</Label>
-                  <Select value={selectedDataset} onValueChange={handleDatasetChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="选择数据集或使用已上传的数据" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {data.length > 0 && (
-                        <SelectItem value="uploaded">已上传的数据 ({data.length} 条记录)</SelectItem>
-                      )}
-                      {datasets.map((dataset) => (
-                        <SelectItem key={dataset.id} value={dataset.id}>
-                          {dataset.name} ({Array.isArray(dataset.data) ? dataset.data.length : 0} 条记录)
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+            {uploadedData.length > 0 && (
+              <div className="p-3 bg-blue-50 rounded-lg">
+                <div className="flex items-center space-x-2">
+                  <FileText className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm font-medium">临时上传的数据</span>
+                  <Badge variant="secondary">{uploadedData.length} 条记录</Badge>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* AI模型选择 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center text-lg">
-                <Settings className="h-5 w-5 mr-2" />
-                AI 模型配置
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="aiModel">选择AI模型</Label>
-                  <Select value={selectedModel} onValueChange={setSelectedModel}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="选择AI模型" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {aiModels.map((model) => (
-                        <SelectItem key={model.id} value={model.id}>
-                          {model.name} ({model.provider})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-sm text-gray-500 mt-1">
-                    AI模型由管理员统一配置和管理
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 数据预览 */}
-          {currentData.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center text-lg">
-                  <BarChart3 className="h-5 w-5 mr-2" />
-                  数据预览
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full table-auto border-collapse">
-                    <thead>
-                      <tr className="bg-gray-50">
-                        {Object.keys(currentData[0] || {}).map((key) => (
-                          <th key={key} className="border border-gray-200 px-4 py-2 text-left text-sm font-medium text-gray-700">
-                            {key}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {currentData.slice(0, 10).map((row, index) => (
-                        <tr key={index} className="hover:bg-gray-50">
-                          {Object.values(row).map((value, colIndex) => (
-                            <td key={colIndex} className="border border-gray-200 px-4 py-2 text-sm text-gray-900">
-                              {String(value)}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  {currentData.length > 10 && (
-                    <p className="text-sm text-gray-500 mt-2">
-                      显示前10行，共{currentData.length}行数据
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* 分析设置 */}
-          {selectedAnalysis && (
-            <Card>
-              <CardHeader>
-                <CardTitle>分析设置 - {getAnalysisName(selectedAnalysis)}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="variables">选择变量</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="选择要分析的变量" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {currentData.length > 0 && Object.keys(currentData[0]).map((key) => (
-                          <SelectItem key={key} value={key}>{key}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="options">分析选项</Label>
-                    <Textarea 
-                      id="options"
-                      placeholder="输入特殊的分析要求或参数..."
-                      className="mt-1"
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* 分析结果 */}
-          {analysisResults && (
-            <Card>
-              <CardHeader>
-                <CardTitle>分析结果</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <pre className="whitespace-pre-wrap text-sm text-gray-800 font-mono">
-                    {analysisResults}
-                  </pre>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* 空状态 */}
-          {!selectedAnalysis && currentData.length === 0 && (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-16">
-                <BarChart3 className="h-16 w-16 text-gray-300 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">开始您的数据分析</h3>
-                <p className="text-gray-500 text-center max-w-md">
-                  请先选择数据源，然后从左侧选择合适的分析方法。我们支持CSV、JSON、Excel等格式。
+                <p className="text-xs text-blue-600 mt-1">
+                  如果未选择数据集，将使用此临时数据进行分析
                 </p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+              </div>
+            )}
 
-        {/* 分析队列 */}
-        <div className="lg:col-span-1">
-          <AnalysisQueue ref={queueRef} />
-        </div>
-      </div>
-    </main>
+            {!selectedDataset && uploadedData.length === 0 && (
+              <div className="p-3 bg-yellow-50 rounded-lg">
+                <div className="flex items-center space-x-2">
+                  <AlertCircle className="h-4 w-4 text-yellow-600" />
+                  <span className="text-sm font-medium text-yellow-800">
+                    没有可用的数据源
+                  </span>
+                </div>
+                <p className="text-xs text-yellow-600 mt-1">
+                  请选择数据集或上传数据文件
+                </p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 分析配置 */}
+      {selectedAnalysis && currentAnalysis && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Play className="h-5 w-5" />
+              <span>{currentAnalysis.title}</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-medium mb-2">分析说明</h4>
+                <p className="text-sm text-gray-600">{currentAnalysis.description}</p>
+              </div>
+              <div>
+                <h4 className="font-medium mb-2">使用示例</h4>
+                <p className="text-sm text-gray-600">{currentAnalysis.example}</p>
+              </div>
+              <Button
+                onClick={runAnalysis}
+                disabled={isAnalyzing || (!selectedDataset && uploadedData.length === 0)}
+                className="w-full"
+                size="lg"
+              >
+                {isAnalyzing ? '分析中...' : '开始分析'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 分析队列 */}
+      <AnalysisQueue ref={analysisQueueRef} />
+    </div>
   );
 };
+

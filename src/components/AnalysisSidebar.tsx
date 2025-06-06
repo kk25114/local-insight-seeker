@@ -24,8 +24,7 @@ import {
   FileText,
   Search,
   MoreHorizontal,
-  ChevronLeft,
-  ChevronRight
+  FoldHorizontal
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -194,23 +193,19 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
     <div className={`relative border-r border-gray-200 bg-white transition-all duration-300 ${
       isCollapsed ? 'w-12' : 'w-64'
     }`}>
-      {/* 折叠按钮 */}
+      {/* 折叠按钮 - 左侧位置，使用 FoldHorizontal 图标 */}
       <Button
         variant="ghost"
         size="sm"
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className="absolute -right-3 top-4 z-10 h-6 w-6 rounded-full border border-gray-200 bg-white shadow-sm hover:bg-gray-50"
+        className="absolute left-2 top-4 z-10 h-8 w-8 rounded-md border border-gray-200 bg-white shadow-sm hover:bg-gray-50"
       >
-        {isCollapsed ? (
-          <ChevronRight className="h-3 w-3" />
-        ) : (
-          <ChevronLeft className="h-3 w-3" />
-        )}
+        <FoldHorizontal className={`h-4 w-4 transition-transform ${isCollapsed ? 'rotate-180' : ''}`} />
       </Button>
 
       {!isCollapsed && (
         <>
-          <div className="p-4 border-b border-gray-200">
+          <div className="p-4 pt-16 border-b border-gray-200">
             <div className="flex items-center space-x-2">
               <Search className="h-4 w-4 text-gray-400" />
               <input 
@@ -266,7 +261,7 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
       )}
 
       {isCollapsed && (
-        <div className="p-2 space-y-2">
+        <div className="p-2 pt-16 space-y-2">
           {analysisCategories.slice(0, 8).map((category) => (
             <div key={category.label} className="space-y-1">
               {category.items.slice(0, 1).map((item) => (
@@ -292,3 +287,4 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
     </div>
   );
 };
+
