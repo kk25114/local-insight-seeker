@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -178,6 +177,56 @@ export const DataManagement: React.FC<DataManagementProps> = ({ user, onDataSele
     }
   };
 
+  // 添加初始化示例数据的功能
+  const initializeSampleDatasets = async () => {
+    if (!user) return;
+
+    try {
+      const sampleDatasets = [
+        {
+          name: '销售数据样例',
+          description: '包含产品销售信息的示例数据',
+          data: [
+            { 产品: 'A产品', 销售额: 1200, 数量: 24, 月份: '1月' },
+            { 产品: 'B产品', 销售额: 800, 数量: 16, 月份: '1月' },
+            { 产品: 'C产品', 销售额: 1500, 数量: 30, 月份: '1月' },
+            { 产品: 'A产品', 销售额: 1350, 数量: 27, 月份: '2月' },
+            { 产品: 'B产品', 销售额: 950, 数量: 19, 月份: '2月' }
+          ],
+          user_id: user.id
+        },
+        {
+          name: '学生成绩样例',
+          description: '学生成绩数据示例',
+          data: [
+            { 姓名: '张三', 数学: 85, 语文: 78, 英语: 92, 班级: '一班' },
+            { 姓名: '李四', 数学: 72, 语文: 85, 英语: 76, 班级: '一班' },
+            { 姓名: '王五', 数学: 95, 语文: 88, 英语: 94, 班级: '二班' },
+            { 姓名: '赵六', 数学: 68, 语文: 72, 英语: 81, 班级: '二班' }
+          ],
+          user_id: user.id
+        }
+      ];
+
+      for (const dataset of sampleDatasets) {
+        await supabase.from('datasets').insert(dataset);
+      }
+
+      toast({
+        title: "初始化成功",
+        description: "已添加示例数据集",
+      });
+      loadDatasets();
+    } catch (error) {
+      console.error('初始化示例数据失败:', error);
+      toast({
+        title: "初始化失败",
+        description: "添加示例数据时出现错误",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -235,8 +284,11 @@ export const DataManagement: React.FC<DataManagementProps> = ({ user, onDataSele
         </CardHeader>
         <CardContent>
           {datasets.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              暂无数据集，请上传您的第一个数据集
+            <div className="text-center py-8">
+              <p className="text-gray-500 mb-4">暂无数据集，您可以上传新数据集或初始化示例数据</p>
+              <Button onClick={initializeSampleDatasets} variant="outline">
+                初始化示例数据
+              </Button>
             </div>
           ) : (
             <div className="space-y-4">

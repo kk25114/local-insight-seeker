@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,10 +31,12 @@ export const AlgorithmManagement: React.FC<AlgorithmManagementProps> = ({ user }
   const { toast } = useToast();
 
   useEffect(() => {
+    console.log('AlgorithmManagement mounted, user:', user);
     loadAlgorithms();
   }, []);
 
   const loadAlgorithms = async () => {
+    console.log('开始加载算法...');
     try {
       setIsLoading(true);
       const { data, error } = await supabase
@@ -44,20 +45,24 @@ export const AlgorithmManagement: React.FC<AlgorithmManagementProps> = ({ user }
         .order('category', { ascending: true })
         .order('name', { ascending: true });
 
+      console.log('Supabase 查询结果:', { data, error });
+
       if (error) {
         console.error('Supabase error:', error);
         throw error;
       }
       
-      console.log('Loaded algorithms:', data);
+      console.log('成功加载算法:', data);
       setAlgorithms(data || []);
     } catch (error) {
       console.error('加载算法失败:', error);
       toast({
         title: "加载失败",
-        description: "无法获取算法列表",
+        description: "无法获取算法列表，请查看控制台错误信息",
         variant: "destructive",
       });
+      // 设置为空数组以保证UI正常显示
+      setAlgorithms([]);
     } finally {
       setIsLoading(false);
     }
@@ -110,6 +115,69 @@ export const AlgorithmManagement: React.FC<AlgorithmManagementProps> = ({ user }
     setIsDialogOpen(true);
   };
 
+  const initializeDefaultAlgorithms = async () => {
+    try {
+      // 首先检查是否已经有算法了
+      const { data: existingAlgorithms } = await supabase
+        .from('analysis_algorithms')
+        .select('name')
+        .limit(1);
+
+      if (existingAlgorithms && existingAlgorithms.length > 0) {
+        toast({
+          title: "提示",
+          description: "已存在算法，无需重复初始化",
+        });
+        return;
+      }
+
+      const defaultAlgorithms = [
+        {
+          name: '机器学习预测',
+          category: '进阶方法',
+          description: '使用机器学习算法进行预测分析',
+          prompt_template: '请对以下数据进行机器学习预测分析，数据如下：{data}。请选择合适的机器学习算法，解释模型性能，并给出预测结果和建议。',
+          created_by: user.id
+        },
+        {
+          name: 'K-means聚类',
+          category: '进阶方法',
+          description: '使用K-means算法进行聚类分析',
+          prompt_template: '请对以下数据进行K-means聚类分析，数据如下：{data}。请确定最佳聚类数量，解释各聚类的特征，并给出业务建议。',
+          created_by: user.id
+        },
+        {
+          name: '主成分分析',
+          category: '综合评价',
+          description: '进行主成分分析降维',
+          prompt_template: '请对以下数据进行主成分分析，数据如下：{data}。请解释主成分的含义，计算方差贡献率，并提供降维建议。',
+          created_by: user.id
+        }
+      ];
+
+      const { error } = await supabase
+        .from('analysis_algorithms')
+        .insert(defaultAlgorithms);
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "初始化成功",
+        description: "已添加默认算法",
+      });
+      loadAlgorithms();
+    } catch (error) {
+      console.error('初始化默认算法失败:', error);
+      toast({
+        title: "初始化失败",
+        description: "添加默认算法时出现错误",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -152,7 +220,10 @@ export const AlgorithmManagement: React.FC<AlgorithmManagementProps> = ({ user }
             </div>
           ) : algorithms.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-500">暂无算法，点击上方按钮添加新算法</p>
+              <p className="text-gray-500 mb-4">暂无算法，您可以添加新算法或初始化默认算法</p>
+              <Button onClick={initializeDefaultAlgorithms} variant="outline">
+                初始化默认算法
+              </Button>
             </div>
           ) : (
             <Table>

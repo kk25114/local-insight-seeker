@@ -1,12 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem
-} from "@/components/ui/sidebar";
-import {
   Accordion,
   AccordionItem,
   AccordionTrigger,
@@ -24,7 +17,9 @@ import {
   Search,
   MoreHorizontal,
   Menu,
-  Info
+  Info,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -135,6 +130,7 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
   const [dropdownValue, setDropdownValue] = useState('option1');
   const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false);
   const [currentAnalysisInfo, setCurrentAnalysisInfo] = useState<AnalysisDetail | null>(null);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   // 加载自定义算法
   useEffect(() => {
@@ -224,65 +220,128 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
   }, [searchQuery, analysisCategories]);
 
   return (
-    <Sidebar>
-      <div className="p-4 pt-4 border-b border-gray-200 space-y-4">
-        <div className="flex items-center space-x-2">
-          <Search className="h-4 w-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="搜索方法"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="text-sm bg-transparent border-none outline-none flex-1 placeholder-gray-400"
-          />
-        </div>
-      </div>
-      
-      <SidebarContent>
-        {filteredCategories.length === 0 ? (
-          <div className="p-4 text-center text-gray-500 text-sm">
-            未找到匹配的分析方法
+    <div className={`border-r border-gray-200 bg-white transition-all duration-300 ${
+      isCollapsed ? 'w-16' : 'w-64'
+    }`}>
+      {/* 顶部折叠区域 */}
+      <div className="flex items-center justify-between p-3 border-b border-gray-200 bg-gray-50">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="h-8 w-8 p-0 hover:bg-gray-200 rounded-full"
+        >
+          {isCollapsed ? (
+            <ChevronRight className="h-4 w-4" />
+          ) : (
+            <ChevronLeft className="h-4 w-4" />
+          )}
+        </Button>
+        
+        {!isCollapsed && (
+          <div className="flex items-center space-x-2">
+            <div className="w-7 h-7 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-sm">
+              <span className="text-white text-sm font-bold">S</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-bold text-blue-600">SPSSAI</span>
+              <span className="text-xs text-gray-500">统计科学</span>
+            </div>
           </div>
-        ) : (
-          <Accordion
-            type="multiple"
-            defaultValue={filteredCategories.map(c => c.label)}
-            className="w-full"
-          >
-            {filteredCategories.map((category) => (
-              <AccordionItem value={category.label} key={category.label}>
-                <AccordionTrigger className="text-sm font-medium hover:no-underline px-2 py-2">
-                  {category.label}
-                </AccordionTrigger>
-                <AccordionContent className="pb-1">
-                  <div className="flex flex-col space-y-1">
-                    {category.items.map((item) => (
-                      <div
-                        key={item.key}
-                        onClick={() => onSelectAnalysis(item.key)}
-                        className={`group flex items-center justify-between p-2 text-sm rounded-md cursor-pointer ${
-                          selectedAnalysis === item.key
-                            ? 'bg-blue-100 text-blue-700'
-                            : 'hover:bg-gray-100'
-                        }`}
-                      >
-                        <div className="flex items-center space-x-2">
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.title}</span>
-                        </div>
-                        <Info 
-                          className="h-4 w-4 text-gray-400 group-hover:text-gray-600"
-                          onClick={(e) => handleInfoClick(e, item.key)}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
         )}
-      </SidebarContent>
+      </div>
+
+      {!isCollapsed && (
+        <>
+          {/* 搜索区域 */}
+          <div className="p-4 border-b border-gray-200">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="搜索方法"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-blue-300 focus:bg-white transition-colors"
+              />
+            </div>
+          </div>
+          
+          {/* 分析方法列表 */}
+          <div className="px-2 overflow-y-auto max-h-[calc(100vh-180px)]">
+            {filteredCategories.length === 0 ? (
+              <div className="p-4 text-center text-gray-500 text-sm">
+                <Search className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                <p>未找到匹配的分析方法</p>
+              </div>
+            ) : (
+              <Accordion
+                type="multiple"
+                defaultValue={filteredCategories.map(c => c.label)}
+                className="w-full"
+              >
+                {filteredCategories.map((category) => (
+                  <AccordionItem value={category.label} key={category.label}>
+                    <AccordionTrigger className="text-sm font-medium hover:no-underline px-2 py-3 hover:bg-gray-50 rounded-lg">
+                      {category.label}
+                    </AccordionTrigger>
+                    <AccordionContent className="pb-2">
+                      <div className="flex flex-col space-y-1 ml-2">
+                        {category.items.map((item) => (
+                          <div
+                            key={item.key}
+                            onClick={() => onSelectAnalysis(item.key)}
+                            className={`group flex items-center justify-between p-2 text-sm rounded-lg cursor-pointer transition-colors ${
+                              selectedAnalysis === item.key
+                                ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                                : 'hover:bg-gray-50'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-2">
+                              <item.icon className="h-4 w-4 flex-shrink-0" />
+                              <span className="truncate">{item.title}</span>
+                            </div>
+                            <Info 
+                              className="h-4 w-4 text-gray-400 group-hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                              onClick={(e) => handleInfoClick(e, item.key)}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* 折叠状态下的简化视图 */}
+      {isCollapsed && (
+        <div className="py-3 space-y-2">
+          {analysisCategories.slice(0, 8).map((category, categoryIndex) => (
+            <div key={category.label} className="px-2">
+              {category.items.slice(0, 1).map((item) => (
+                <Button
+                  key={item.key}
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onSelectAnalysis(item.key)}
+                  className={`w-full h-10 p-0 rounded-lg ${
+                    selectedAnalysis === item.key
+                      ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                      : 'hover:bg-gray-100'
+                  }`}
+                  title={`${category.label} - ${item.title}`}
+                >
+                  <item.icon className="h-4 w-4" />
+                </Button>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
       
       <Dialog open={isInfoDialogOpen} onOpenChange={setIsInfoDialogOpen}>
         <DialogContent>
@@ -303,6 +362,6 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
           </DialogHeader>
         </DialogContent>
       </Dialog>
-    </Sidebar>
+    </div>
   );
 };

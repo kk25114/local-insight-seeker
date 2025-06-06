@@ -1,9 +1,8 @@
 import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Upload, Play, FileText, Database, Settings, User, Bell, LogOut, Cog, GitBranch, Menu } from 'lucide-react';
+import { Upload, Play, FileText, Database, Settings, User, Bell, LogOut, Cog, GitBranch } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { SidebarTrigger } from "@/components/ui/sidebar";
 import { supabase } from '@/integrations/supabase/client';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -93,7 +92,7 @@ export const MainHeader: React.FC<MainHeaderProps> = ({ onDataUpload, user, curr
     setAnalysisMode(mode);
     toast({
       title: "模式切换",
-      description: `已切换到${mode === 'basic' ? '基础' : '专业'}模式`,
+      description: `已切换到${mode === 'basic' ? 'SPSSAI基础' : 'SPSSAI专业'}模式`,
     });
   };
 
@@ -101,37 +100,21 @@ export const MainHeader: React.FC<MainHeaderProps> = ({ onDataUpload, user, curr
     <header className="bg-white border-b border-gray-200 px-6 py-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <SidebarTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 w-6 rounded-sm p-0"
-            >
-              <Menu className="h-4 w-4" />
-            </Button>
-          </SidebarTrigger>
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-blue-600 rounded-md flex items-center justify-center">
-              <span className="text-white text-sm font-bold">S</span>
-            </div>
-            <div className="flex flex-col">
-              <h1 className="text-xl font-bold text-blue-600">{getViewTitle()}</h1>
-              <span className="text-xs text-gray-500">统计科学 — 点就好</span>
-            </div>
+          {/* 模式选择下拉框 - 移到最左边 */}
+          <div className="relative">
+            <Select value={analysisMode} onValueChange={handleModeChange}>
+              <SelectTrigger className="w-40 bg-blue-600 text-white border-blue-600 hover:bg-blue-700 text-sm">
+                <SelectValue placeholder="选择模式" />
+              </SelectTrigger>
+              <SelectContent className="z-50">
+                <SelectItem value="basic" className="text-sm">SPSSAI基础模式</SelectItem>
+                <SelectItem value="professional" className="text-sm">SPSSAI专业模式</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
         
         <div className="flex items-center space-x-4">
-          {/* 模式选择下拉框 */}
-          <Select value={analysisMode} onValueChange={handleModeChange}>
-            <SelectTrigger className="w-32">
-              <SelectValue placeholder="选择模式" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="basic">基础模式</SelectItem>
-              <SelectItem value="professional">专业模式</SelectItem>
-            </SelectContent>
-          </Select>
 
           {currentView === 'analysis' && (
             <>

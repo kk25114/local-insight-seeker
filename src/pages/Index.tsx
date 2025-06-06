@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AnalysisSidebar } from '@/components/AnalysisSidebar';
 import { MainHeader } from '@/components/MainHeader';
 import { WorkArea } from '@/components/WorkArea';
@@ -132,14 +131,19 @@ const Index = () => {
   }
 
   const renderContent = () => {
+    console.log('renderContent called with currentView:', currentView, 'user:', user);
     switch (currentView) {
       case 'algorithms':
+        console.log('渲染算法管理组件');
         return <AlgorithmManagement user={user!} />;
       case 'models':
+        console.log('渲染模型管理组件');
         return <ModelManagement user={user!} />;
       case 'data':
+        console.log('渲染数据管理组件');
         return <DataManagement user={user!} onDataSelect={setUploadedData} />;
       default:
+        console.log('渲染工作区组件');
         return (
           <WorkArea 
             selectedAnalysis={selectedAnalysis}
@@ -153,27 +157,25 @@ const Index = () => {
   try {
     return (
       <>
-        <SidebarProvider defaultOpen={true}>
-          <div className="min-h-screen flex w-full bg-gray-50">
-            {currentView === 'analysis' && (
-              <AnalysisSidebar 
-                selectedAnalysis={selectedAnalysis}
-                onSelectAnalysis={setSelectedAnalysis}
-              />
-            )}
-            <SidebarInset>
-              <MainHeader 
-                onDataUpload={setUploadedData}
-                user={user}
-                currentView={currentView}
-                onViewChange={setCurrentView}
-              />
-              <main className="flex-1 p-6 overflow-auto">
-                {renderContent()}
-              </main>
-            </SidebarInset>
+        <div className="min-h-screen flex w-full bg-gray-50">
+          {currentView === 'analysis' && (
+            <AnalysisSidebar 
+              selectedAnalysis={selectedAnalysis}
+              onSelectAnalysis={setSelectedAnalysis}
+            />
+          )}
+          <div className="flex-1 flex flex-col">
+            <MainHeader 
+              onDataUpload={setUploadedData}
+              user={user}
+              currentView={currentView}
+              onViewChange={setCurrentView}
+            />
+            <main className="flex-1 p-6 overflow-auto">
+              {renderContent()}
+            </main>
           </div>
-        </SidebarProvider>
+        </div>
         <ChatWidget />
       </>
     );

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -33,10 +32,12 @@ export const ModelManagement: React.FC<ModelManagementProps> = ({ user }) => {
   const { toast } = useToast();
 
   useEffect(() => {
+    console.log('ModelManagement mounted, user:', user);
     loadModels();
   }, []);
 
   const loadModels = async () => {
+    console.log('开始加载模型...');
     try {
       setIsLoading(true);
       const { data, error } = await supabase
@@ -44,20 +45,24 @@ export const ModelManagement: React.FC<ModelManagementProps> = ({ user }) => {
         .select('*')
         .order('name', { ascending: true });
 
+      console.log('Supabase 查询结果:', { data, error });
+
       if (error) {
         console.error('Supabase error:', error);
         throw error;
       }
       
-      console.log('Loaded models:', data);
+      console.log('成功加载模型:', data);
       setModels(data || []);
     } catch (error) {
       console.error('加载模型失败:', error);
       toast({
         title: "加载失败",
-        description: "无法获取模型列表",
+        description: "无法获取模型列表，请查看控制台错误信息",
         variant: "destructive",
       });
+      // 设置为空数组以保证UI正常显示
+      setModels([]);
     } finally {
       setIsLoading(false);
     }
@@ -133,31 +138,65 @@ export const ModelManagement: React.FC<ModelManagementProps> = ({ user }) => {
     setIsDialogOpen(true);
   };
 
-  // 添加您指定的 Grok 模型
-  const addGrokModel = async () => {
+  // 添加初始化默认模型的功能
+  const initializeDefaultModels = async () => {
     try {
-      const { error } = await supabase
+      // 首先检查是否已经有模型了
+      const { data: existingModels } = await supabase
         .from('ai_models')
-        .insert({
+        .select('name')
+        .limit(1);
+
+      if (existingModels && existingModels.length > 0) {
+        toast({
+          title: "提示",
+          description: "已存在AI模型，无需重复初始化",
+        });
+        return;
+      }
+
+      const defaultModels = [
+        {
+          name: 'GPT-4o',
+          provider: 'openai',
+          model_id: 'gpt-4o',
+          api_key_name: 'OPENAI_API_KEY',
+          is_active: true,
+        },
+        {
+          name: 'Claude 3.5 Sonnet',
+          provider: 'anthropic', 
+          model_id: 'claude-3-5-sonnet-20241022',
+          api_key_name: 'ANTHROPIC_API_KEY',
+          is_active: true,
+        },
+        {
           name: 'Grok 3 Fast Beta',
           provider: 'xai',
-          model_id: 'grok-3-fast-beta',
+          model_id: 'grok-3-fast-beta', 
           api_key_name: 'XAI_API_KEY',
           is_active: true,
-        });
+        }
+      ];
 
-      if (error) throw error;
-      
+      const { error } = await supabase
+        .from('ai_models')
+        .insert(defaultModels);
+
+      if (error) {
+        throw error;
+      }
+
       toast({
-        title: "添加成功",
-        description: "Grok 3 Fast Beta 模型已成功添加",
+        title: "初始化成功",
+        description: "已添加默认AI模型",
       });
       loadModels();
     } catch (error) {
-      console.error('添加 Grok 模型失败:', error);
+      console.error('初始化默认模型失败:', error);
       toast({
-        title: "添加失败",
-        description: "添加 Grok 模型时出现错误",
+        title: "初始化失败",
+        description: "添加默认模型时出现错误",
         variant: "destructive",
       });
     }
@@ -171,8 +210,8 @@ export const ModelManagement: React.FC<ModelManagementProps> = ({ user }) => {
           <h1 className="text-2xl font-bold">模型管理</h1>
         </div>
         <div className="flex space-x-2">
-          <Button variant="outline" onClick={addGrokModel}>
-            快速添加 Grok 3 Fast Beta
+          <Button variant="outline" onClick={initializeDefaultModels}>
+            初始化默认模型
           </Button>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
@@ -209,7 +248,10 @@ export const ModelManagement: React.FC<ModelManagementProps> = ({ user }) => {
             </div>
           ) : models.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-500">暂无模型，点击上方按钮添加新模型</p>
+              <p className="text-gray-500 mb-4">暂无AI模型，您可以添加新模型或初始化默认模型</p>
+              <Button onClick={initializeDefaultModels} variant="outline">
+                初始化默认模型
+              </Button>
             </div>
           ) : (
             <Table>
