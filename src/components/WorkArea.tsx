@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -267,23 +266,29 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, uploadedDa
             )}
 
             {!selectedDataset && (!uploadedData || uploadedData.length === 0) && (
-              <div className="p-3 bg-yellow-50 rounded-lg">
-                <div className="flex items-center space-x-2">
-                  <AlertCircle className="h-4 w-4 text-yellow-600" />
-                  <span className="text-sm font-medium text-yellow-800">
-                    没有可用的数据源
-                  </span>
+              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    <AlertCircle className="h-5 w-5 text-yellow-400" />
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-yellow-800">
+                      没有可用的数据源
+                    </h3>
+                    <div className="mt-2 text-sm text-yellow-700">
+                      <p>
+                        请选择数据集或上传数据文件
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <p className="text-xs text-yellow-600 mt-1">
-                  请选择数据集或上传数据文件
-                </p>
               </div>
             )}
           </div>
         </CardContent>
       </Card>
 
-      {/* 分析配置 */}
+      {/* 分析说明 */}
       {selectedAnalysis && currentAnalysis && (
         <Card>
           <CardHeader>
@@ -292,25 +297,23 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, uploadedDa
               <span>{currentAnalysis.title}</span>
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <h4 className="font-medium mb-2">分析说明</h4>
-                <p className="text-sm text-gray-600">{currentAnalysis.description}</p>
-              </div>
-              <div>
-                <h4 className="font-medium mb-2">使用示例</h4>
-                <p className="text-sm text-gray-600">{currentAnalysis.example}</p>
-              </div>
-              <Button
-                onClick={runAnalysis}
-                disabled={isAnalyzing || (!selectedDataset && (!uploadedData || uploadedData.length === 0))}
-                className="w-full"
-                size="lg"
-              >
-                {isAnalyzing ? '分析中...' : '开始分析'}
-              </Button>
+          <CardContent className="space-y-4">
+            <div>
+              <h4 className="font-semibold text-base mb-1">分析说明</h4>
+              <p className="text-sm text-gray-600">{currentAnalysis.description}</p>
             </div>
+            <div>
+              <h4 className="font-semibold text-base mb-1">使用示例</h4>
+              <p className="text-sm text-gray-600">{currentAnalysis.example}</p>
+            </div>
+            <Button
+              onClick={runAnalysis}
+              disabled={isAnalyzing || (!selectedDataset && (!uploadedData || uploadedData.length === 0))}
+              className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800"
+              size="lg"
+            >
+              {isAnalyzing ? '分析中...' : '开始分析'}
+            </Button>
           </CardContent>
         </Card>
       )}
