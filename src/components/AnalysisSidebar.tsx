@@ -24,7 +24,7 @@ import {
   FileText,
   Search,
   MoreHorizontal,
-  FoldHorizontal
+  Menu
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -193,14 +193,14 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
     <div className={`relative border-r border-gray-200 bg-white transition-all duration-300 ${
       isCollapsed ? 'w-12' : 'w-64'
     }`}>
-      {/* 折叠按钮 - 左侧位置，使用 FoldHorizontal 图标 */}
+      {/* 简单的菜单按钮 - 左侧位置 */}
       <Button
         variant="ghost"
         size="sm"
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className="absolute left-2 top-4 z-10 h-8 w-8 rounded-md border border-gray-200 bg-white shadow-sm hover:bg-gray-50"
+        className="absolute left-3 top-4 z-10 h-6 w-6 rounded-sm p-0"
       >
-        <FoldHorizontal className={`h-4 w-4 transition-transform ${isCollapsed ? 'rotate-180' : ''}`} />
+        <Menu className="h-4 w-4" />
       </Button>
 
       {!isCollapsed && (
@@ -287,4 +287,3 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
     </div>
   );
 };
-
