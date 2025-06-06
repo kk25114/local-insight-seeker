@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,7 +21,12 @@ interface AnalysisQueueProps {
   onTaskComplete?: (task: AnalysisTask) => void;
 }
 
-export const AnalysisQueue: React.FC<AnalysisQueueProps> = ({ onTaskComplete }) => {
+export interface AnalysisQueueRef {
+  addTask: (name: string) => string;
+  updateTask: (id: string, updates: Partial<AnalysisTask>) => void;
+}
+
+export const AnalysisQueue = forwardRef<AnalysisQueueRef, AnalysisQueueProps>(({ onTaskComplete }, ref) => {
   const [tasks, setTasks] = useState<AnalysisTask[]>([]);
   const { toast } = useToast();
 
@@ -47,6 +52,11 @@ export const AnalysisQueue: React.FC<AnalysisQueueProps> = ({ onTaskComplete }) 
   const removeTask = (id: string) => {
     setTasks(prev => prev.filter(task => task.id !== id));
   };
+
+  useImperativeHandle(ref, () => ({
+    addTask,
+    updateTask,
+  }));
 
   const getStatusIcon = (status: AnalysisTask['status']) => {
     switch (status) {
@@ -84,12 +94,6 @@ export const AnalysisQueue: React.FC<AnalysisQueueProps> = ({ onTaskComplete }) 
       </Badge>
     );
   };
-
-  // 暴露添加任务的方法给父组件
-  React.useImperativeHandle(React.forwardRef(() => null), () => ({
-    addTask,
-    updateTask,
-  }), []);
 
   return (
     <Card>
@@ -143,31 +147,6 @@ export const AnalysisQueue: React.FC<AnalysisQueueProps> = ({ onTaskComplete }) 
       </CardContent>
     </Card>
   );
-};
+});
 
-// 创建一个 Hook 来使用队列
-export const useAnalysisQueue = () => {
-  const [queueRef, setQueueRef] = useState<{
-    addTask: (name: string) => string;
-    updateTask: (id: string, updates: Partial<AnalysisTask>) => void;
-  } | null>(null);
-
-  const addTask = (name: string) => {
-    if (queueRef) {
-      return queueRef.addTask(name);
-    }
-    return '';
-  };
-
-  const updateTask = (id: string, updates: Partial<AnalysisTask>) => {
-    if (queueRef) {
-      queueRef.updateTask(id, updates);
-    }
-  };
-
-  return {
-    setQueueRef,
-    addTask,
-    updateTask,
-  };
-};
+AnalysisQueue.displayName = 'AnalysisQueue';

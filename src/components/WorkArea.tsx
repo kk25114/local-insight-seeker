@@ -9,13 +9,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PlayCircle, FileText, BarChart3, Settings, Database } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { AnalysisQueue, useAnalysisQueue } from '@/components/AnalysisQueue';
+import { AnalysisQueue, type AnalysisQueueRef } from '@/components/AnalysisQueue';
 import type { User } from '@supabase/supabase-js';
 
 interface WorkAreaProps {
   selectedAnalysis: string;
   data: any[];
-  user: User;
+  user: User | null;
 }
 
 interface AIModel {
@@ -42,6 +42,7 @@ interface DataSet {
   description: string;
   data: any[];
   created_at: string;
+  user_id: string;
 }
 
 export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, data, user }) => {
@@ -54,13 +55,15 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, data, user
   const [datasets, setDatasets] = useState<DataSet[]>([]);
   const [currentData, setCurrentData] = useState<any[]>(data);
   const { toast } = useToast();
-  const { addTask, updateTask, setQueueRef } = useAnalysisQueue();
+  const queueRef = useRef<AnalysisQueueRef>(null);
 
   useEffect(() => {
     loadAIModels();
     loadAlgorithms();
-    loadDatasets();
-  }, []);
+    if (user) {
+      loadDatasets();
+    }
+  }, [user]);
 
   useEffect(() => {
     setCurrentData(data);
@@ -105,6 +108,8 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, data, user
   };
 
   const loadDatasets = async () => {
+    if (!user) return;
+    
     try {
       const { data: ds, error } = await supabase
         .from('datasets')
@@ -121,13 +126,21 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, data, user
 
   const handleDatasetChange = (datasetId: string) => {
     setSelectedDataset(datasetId);
-    const dataset = datasets.find(ds => ds.id === datasetId);
-    if (dataset) {
-      setCurrentData(dataset.data);
+    if (datasetId === 'uploaded') {
+      setCurrentData(data);
       toast({
         title: "数据源已切换",
-        description: `已选择数据集: ${dataset.name}`,
+        description: "已选择上传的数据",
       });
+    } else {
+      const dataset = datasets.find(ds => ds.id === datasetId);
+      if (dataset) {
+        setCurrentData(dataset.data);
+        toast({
+          title: "数据源已切换",
+          description: `已选择数据集: ${dataset.name}`,
+        });
+      }
     }
   };
 
@@ -151,8 +164,10 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, data, user
     }
 
     // 添加到分析队列
-    const taskId = addTask(`${getAnalysisName(selectedAnalysis)} - ${new Date().toLocaleTimeString()}`);
-    updateTask(taskId, { status: 'running' });
+    const taskId = queueRef.current?.addTask(`${getAnalysisName(selectedAnalysis)} - ${new Date().toLocaleTimeString()}`);
+    if (taskId) {
+      queueRef.current?.updateTask(taskId, { status: 'running' });
+    }
 
     setIsAnalyzing(true);
     console.log("开始分析:", selectedAnalysis);
@@ -196,11 +211,13 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, data, user
       const analysisResult = result?.content || '分析完成，但未收到结果';
       
       setAnalysisResults(analysisResult);
-      updateTask(taskId, { 
-        status: 'completed', 
-        result: analysisResult,
-        completedAt: new Date()
-      });
+      if (taskId) {
+        queueRef.current?.updateTask(taskId, { 
+          status: 'completed', 
+          result: analysisResult,
+          completedAt: new Date()
+        });
+      }
       
       toast({
         title: "分析完成",
@@ -214,11 +231,13 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, data, user
         errorMessage = error.message;
       }
 
-      updateTask(taskId, { 
-        status: 'failed', 
-        error: errorMessage,
-        completedAt: new Date()
-      });
+      if (taskId) {
+        queueRef.current?.updateTask(taskId, { 
+          status: 'failed', 
+          error: errorMessage,
+          completedAt: new Date()
+        });
+      }
       
       toast({
         title: "分析失败",
@@ -460,7 +479,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, data, user
 
         {/* 分析队列 */}
         <div className="lg:col-span-1">
-          <AnalysisQueue ref={setQueueRef} />
+          <AnalysisQueue ref={queueRef} />
         </div>
       </div>
     </main>

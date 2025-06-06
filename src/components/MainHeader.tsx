@@ -12,8 +12,8 @@ import type { User as SupabaseUser } from '@supabase/supabase-js';
 interface MainHeaderProps {
   onDataUpload: (data: any[]) => void;
   user: SupabaseUser | null;
-  currentView: 'landing' | 'auth' | 'analysis' | 'algorithms' | 'models';
-  onViewChange: (view: 'landing' | 'auth' | 'analysis' | 'algorithms' | 'models') => void;
+  currentView: 'landing' | 'auth' | 'analysis' | 'algorithms' | 'models' | 'data';
+  onViewChange: (view: 'landing' | 'auth' | 'analysis' | 'algorithms' | 'models' | 'data') => void;
 }
 
 export const MainHeader: React.FC<MainHeaderProps> = ({ onDataUpload, user, currentView, onViewChange }) => {
@@ -81,6 +81,8 @@ export const MainHeader: React.FC<MainHeaderProps> = ({ onDataUpload, user, curr
         return '算法管理';
       case 'models':
         return '模型管理';
+      case 'data':
+        return '数据管理';
       default:
         return 'SPSSAI';
     }
@@ -142,14 +144,14 @@ export const MainHeader: React.FC<MainHeaderProps> = ({ onDataUpload, user, curr
                     <Cog className="h-4 w-4 mr-2" />
                     <span>模型管理</span>
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onViewChange('data')}>
+                    <Database className="h-4 w-4 mr-2" />
+                    <span>数据管理</span>
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem>
                     <Settings className="h-4 w-4 mr-2" />
                     <span>设置</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Database className="h-4 w-4 mr-2" />
-                    <span>数据管理</span>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleSignOut}>

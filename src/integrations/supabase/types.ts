@@ -78,6 +78,66 @@ export type Database = {
         }
         Relationships: []
       }
+      analysis_logs: {
+        Row: {
+          created_at: string
+          id: string
+          model_id: string
+          prompt: string
+          provider: string
+          result: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          model_id: string
+          prompt: string
+          provider: string
+          result?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          model_id?: string
+          prompt?: string
+          provider?: string
+          result?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      datasets: {
+        Row: {
+          created_at: string
+          data: Json
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          data: Json
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
