@@ -23,10 +23,18 @@ import {
   FileText,
   Search,
   MoreHorizontal,
-  Menu
+  Menu,
+  Info
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -34,6 +42,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { analysisConfig } from '@/config/analysis';
 
 interface AnalysisSidebarProps {
   selectedAnalysis: string;
@@ -46,6 +55,12 @@ interface Algorithm {
   category: string;
   description: string;
   prompt_template: string;
+}
+
+interface AnalysisDetail {
+  title: string;
+  description: string;
+  example: string;
 }
 
 const defaultAnalysisCategories = [
@@ -121,11 +136,22 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
   const [customAlgorithms, setCustomAlgorithms] = useState<Algorithm[]>([]);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [dropdownValue, setDropdownValue] = useState('option1');
+  const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false);
+  const [currentAnalysisInfo, setCurrentAnalysisInfo] = useState<AnalysisDetail | null>(null);
 
   // 加载自定义算法
   useEffect(() => {
     loadCustomAlgorithms();
   }, []);
+
+  const handleInfoClick = (e: React.MouseEvent, itemKey: string) => {
+    e.stopPropagation(); // 防止触发行选择
+    const analysisInfo = analysisConfig[itemKey as keyof typeof analysisConfig];
+    if (analysisInfo) {
+      setCurrentAnalysisInfo(analysisInfo);
+      setIsInfoDialogOpen(true);
+    }
+  };
 
   const loadCustomAlgorithms = async () => {
     try {
@@ -233,29 +259,35 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
             ) : (
               <Accordion
                 type="multiple"
-                defaultValue={filteredCategories.map((c) => c.label)}
+                defaultValue={filteredCategories.map(c => c.label)}
                 className="w-full"
               >
                 {filteredCategories.map((category) => (
-                  <AccordionItem key={category.label} value={category.label}>
-                    <AccordionTrigger className="text-xs font-semibold text-gray-600 px-2 py-2">
+                  <AccordionItem value={category.label} key={category.label}>
+                    <AccordionTrigger className="text-sm font-medium hover:no-underline px-2 py-2">
                       {category.label}
                     </AccordionTrigger>
-                    <AccordionContent className="px-0">
-                      <div className="space-y-1">
+                    <AccordionContent className="pb-1">
+                      <div className="flex flex-col space-y-1">
                         {category.items.map((item) => (
-                          <button
+                          <div
                             key={item.key}
                             onClick={() => onSelectAnalysis(item.key)}
-                            className={`w-full flex items-center justify-start text-sm py-2 px-2 rounded-md transition-colors ${
+                            className={`group flex items-center justify-between p-2 text-sm rounded-md cursor-pointer ${
                               selectedAnalysis === item.key
                                 ? 'bg-blue-100 text-blue-700'
                                 : 'hover:bg-gray-100'
                             }`}
                           >
-                            <item.icon className="h-4 w-4 mr-2" />
-                            <span>{item.title}</span>
-                          </button>
+                            <div className="flex items-center space-x-2">
+                              <item.icon className="h-4 w-4" />
+                              <span>{item.title}</span>
+                            </div>
+                            <Info 
+                              className="h-4 w-4 text-gray-400 group-hover:text-gray-600"
+                              onClick={(e) => handleInfoClick(e, item.key)}
+                            />
+                          </div>
                         ))}
                       </div>
                     </AccordionContent>
@@ -304,6 +336,26 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
           </div>
         </>
       )}
+
+      <Dialog open={isInfoDialogOpen} onOpenChange={setIsInfoDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{currentAnalysisInfo?.title}</DialogTitle>
+            <DialogDescription asChild>
+              <div className="space-y-4 mt-4">
+                <div>
+                  <h4 className="font-semibold text-base mb-1">分析说明</h4>
+                  <p className="text-sm text-gray-600">{currentAnalysisInfo?.description}</p>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-base mb-1">使用示例</h4>
+                  <p className="text-sm text-gray-600">{currentAnalysisInfo?.example}</p>
+                </div>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
