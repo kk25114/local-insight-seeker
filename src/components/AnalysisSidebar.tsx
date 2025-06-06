@@ -5,7 +5,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarTrigger
+  useSidebar
 } from "@/components/ui/sidebar";
 import {
   Accordion,
@@ -133,10 +133,10 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [customAlgorithms, setCustomAlgorithms] = useState<Algorithm[]>([]);
-  const [isCollapsed, setIsCollapsed] = useState(false);
   const [dropdownValue, setDropdownValue] = useState('option1');
   const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false);
   const [currentAnalysisInfo, setCurrentAnalysisInfo] = useState<AnalysisDetail | null>(null);
+  const { isOpen, setIsOpen } = useSidebar();
 
   // 加载自定义算法
   useEffect(() => {
@@ -226,121 +226,66 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
   }, [searchQuery, analysisCategories]);
 
   return (
-    <div className={`relative border-r border-gray-200 bg-white transition-all duration-300 ${
-      isCollapsed ? 'w-12' : 'w-64'
-    }`}>
-      {/* 简单的菜单按钮 - 左侧位置 */}
-      <SidebarTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="absolute left-3 top-4 z-10 h-6 w-6 rounded-sm p-0"
-        >
-          <Menu className="h-4 w-4" />
-        </Button>
-      </SidebarTrigger>
-
-      {!isCollapsed && (
-        <>
-          <div className="p-4 pt-16 border-b border-gray-200 space-y-4">
-            <div className="flex items-center space-x-2">
-              <Search className="h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="搜索方法"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="text-sm bg-transparent border-none outline-none flex-1 placeholder-gray-400"
-              />
-            </div>
+    <Sidebar>
+      <div className="p-4 pt-4 border-b border-gray-200 space-y-4">
+        <div className="flex items-center space-x-2">
+          <Search className="h-4 w-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="搜索方法"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="text-sm bg-transparent border-none outline-none flex-1 placeholder-gray-400"
+          />
+        </div>
+      </div>
+      
+      <SidebarContent>
+        {filteredCategories.length === 0 ? (
+          <div className="p-4 text-center text-gray-500 text-sm">
+            未找到匹配的分析方法
           </div>
-          
-          <div className="px-2 overflow-y-auto">
-            {filteredCategories.length === 0 ? (
-              <div className="p-4 text-center text-gray-500 text-sm">
-                未找到匹配的分析方法
-              </div>
-            ) : (
-              <Accordion
-                type="multiple"
-                defaultValue={filteredCategories.map(c => c.label)}
-                className="w-full"
-              >
-                {filteredCategories.map((category) => (
-                  <AccordionItem value={category.label} key={category.label}>
-                    <AccordionTrigger className="text-sm font-medium hover:no-underline px-2 py-2">
-                      {category.label}
-                    </AccordionTrigger>
-                    <AccordionContent className="pb-1">
-                      <div className="flex flex-col space-y-1">
-                        {category.items.map((item) => (
-                          <div
-                            key={item.key}
-                            onClick={() => onSelectAnalysis(item.key)}
-                            className={`group flex items-center justify-between p-2 text-sm rounded-md cursor-pointer ${
-                              selectedAnalysis === item.key
-                                ? 'bg-blue-100 text-blue-700'
-                                : 'hover:bg-gray-100'
-                            }`}
-                          >
-                            <div className="flex items-center space-x-2">
-                              <item.icon className="h-4 w-4" />
-                              <span>{item.title}</span>
-                            </div>
-                            <Info 
-                              className="h-4 w-4 text-gray-400 group-hover:text-gray-600"
-                              onClick={(e) => handleInfoClick(e, item.key)}
-                            />
-                          </div>
-                        ))}
+        ) : (
+          <Accordion
+            type="multiple"
+            defaultValue={filteredCategories.map(c => c.label)}
+            className="w-full"
+          >
+            {filteredCategories.map((category) => (
+              <AccordionItem value={category.label} key={category.label}>
+                <AccordionTrigger className="text-sm font-medium hover:no-underline px-2 py-2">
+                  {category.label}
+                </AccordionTrigger>
+                <AccordionContent className="pb-1">
+                  <div className="flex flex-col space-y-1">
+                    {category.items.map((item) => (
+                      <div
+                        key={item.key}
+                        onClick={() => onSelectAnalysis(item.key)}
+                        className={`group flex items-center justify-between p-2 text-sm rounded-md cursor-pointer ${
+                          selectedAnalysis === item.key
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'hover:bg-gray-100'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-2">
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.title}</span>
+                        </div>
+                        <Info 
+                          className="h-4 w-4 text-gray-400 group-hover:text-gray-600"
+                          onClick={(e) => handleInfoClick(e, item.key)}
+                        />
                       </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
-            )}
-          </div>
-        </>
-      )}
-
-      {isCollapsed && (
-        <>
-          <div className="p-2 pt-16 space-y-2">
-            {analysisCategories.slice(0, 8).map((category) => (
-              <div key={category.label} className="space-y-1">
-                {category.items.slice(0, 1).map((item) => (
-                  <Button
-                    key={item.key}
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onSelectAnalysis(item.key)}
-                    className={`w-8 h-8 p-0 ${
-                      selectedAnalysis === item.key
-                        ? 'bg-blue-100 text-blue-700'
-                        : ''
-                    }`}
-                    title={item.title}
-                  >
-                    <item.icon className="h-4 w-4" />
-                  </Button>
-                ))}
-              </div>
+                    ))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
             ))}
-          </div>
-          <div className="absolute top-4 left-[calc(100%+0.5rem)]">
-            <Select value={dropdownValue} onValueChange={setDropdownValue}>
-              <SelectTrigger className="w-28 h-8">
-                <SelectValue placeholder="选择" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="option1">选项1</SelectItem>
-                <SelectItem value="option2">选项2</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </>
-      )}
-
+          </Accordion>
+        )}
+      </SidebarContent>
+      
       <Dialog open={isInfoDialogOpen} onOpenChange={setIsInfoDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -360,6 +305,6 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
           </DialogHeader>
         </DialogContent>
       </Dialog>
-    </div>
+    </Sidebar>
   );
 };

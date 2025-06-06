@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Upload, Play, FileText, Database, Settings, User, Bell, LogOut, Cog, GitBranch } from 'lucide-react';
+import { Upload, Play, FileText, Database, Settings, User, Bell, LogOut, Cog, GitBranch, Menu } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { supabase } from '@/integrations/supabase/client';
@@ -101,6 +101,15 @@ export const MainHeader: React.FC<MainHeaderProps> = ({ onDataUpload, user, curr
     <header className="bg-white border-b border-gray-200 px-6 py-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
+          <SidebarTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 rounded-sm p-0"
+            >
+              <Menu className="h-4 w-4" />
+            </Button>
+          </SidebarTrigger>
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-blue-600 rounded-md flex items-center justify-center">
               <span className="text-white text-sm font-bold">S</span>
