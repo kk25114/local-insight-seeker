@@ -96,7 +96,7 @@ const Index = () => {
         return (
           <WorkArea 
             selectedAnalysis={selectedAnalysis}
-            data={uploadedData}
+            uploadedData={uploadedData}
             user={user}
           />
         );

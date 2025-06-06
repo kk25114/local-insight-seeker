@@ -22,9 +22,10 @@ interface DataSet {
 
 interface DataManagementProps {
   user: SupabaseUser | null;
+  onDataSelect?: (data: any[]) => void;
 }
 
-export const DataManagement: React.FC<DataManagementProps> = ({ user }) => {
+export const DataManagement: React.FC<DataManagementProps> = ({ user, onDataSelect }) => {
   const [datasets, setDatasets] = useState<DataSet[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [newDataset, setNewDataset] = useState({
@@ -167,6 +168,16 @@ export const DataManagement: React.FC<DataManagementProps> = ({ user }) => {
     }
   };
 
+  const selectDataset = (dataset: DataSet) => {
+    if (onDataSelect) {
+      onDataSelect(dataset.data);
+      toast({
+        title: "数据已选择",
+        description: `已选择数据集: ${dataset.name}`,
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -243,7 +254,7 @@ export const DataManagement: React.FC<DataManagementProps> = ({ user }) => {
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Button variant="ghost" size="sm">
+                    <Button variant="ghost" size="sm" onClick={() => selectDataset(dataset)}>
                       <Eye className="h-4 w-4" />
                     </Button>
                     <Button variant="ghost" size="sm">
@@ -266,4 +277,3 @@ export const DataManagement: React.FC<DataManagementProps> = ({ user }) => {
     </div>
   );
 };
-

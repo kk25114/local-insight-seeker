@@ -70,7 +70,7 @@ const analysisConfig = {
   }
 };
 
-export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, uploadedData, user }) => {
+export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, uploadedData = [], user }) => {
   const [datasets, setDatasets] = useState<DataSet[]>([]);
   const [selectedDataset, setSelectedDataset] = useState<string>('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -128,7 +128,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, uploadedDa
         dataToAnalyze = dataset.data;
         dataSourceName = dataset.name;
       }
-    } else if (uploadedData.length > 0) {
+    } else if (uploadedData && uploadedData.length > 0) {
       dataToAnalyze = uploadedData;
       dataSourceName = '上传的数据';
     }
@@ -176,10 +176,10 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, uploadedDa
       if (user) {
         await supabase.from('analysis_logs').insert({
           user_id: user.id,
-          analysis_type: selectedAnalysis,
-          dataset_id: selectedDataset || null,
-          result: result,
-          status: 'completed'
+          prompt: `${selectedAnalysis} analysis on ${dataSourceName}`,
+          model_id: 'system',
+          provider: 'internal',
+          result: JSON.stringify(result)
         });
       }
 
@@ -253,7 +253,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, uploadedDa
               </Select>
             </div>
 
-            {uploadedData.length > 0 && (
+            {uploadedData && uploadedData.length > 0 && (
               <div className="p-3 bg-blue-50 rounded-lg">
                 <div className="flex items-center space-x-2">
                   <FileText className="h-4 w-4 text-blue-600" />
@@ -266,7 +266,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, uploadedDa
               </div>
             )}
 
-            {!selectedDataset && uploadedData.length === 0 && (
+            {!selectedDataset && (!uploadedData || uploadedData.length === 0) && (
               <div className="p-3 bg-yellow-50 rounded-lg">
                 <div className="flex items-center space-x-2">
                   <AlertCircle className="h-4 w-4 text-yellow-600" />
@@ -304,7 +304,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, uploadedDa
               </div>
               <Button
                 onClick={runAnalysis}
-                disabled={isAnalyzing || (!selectedDataset && uploadedData.length === 0)}
+                disabled={isAnalyzing || (!selectedDataset && (!uploadedData || uploadedData.length === 0))}
                 className="w-full"
                 size="lg"
               >
@@ -320,4 +320,3 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, uploadedDa
     </div>
   );
 };
-
