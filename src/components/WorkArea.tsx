@@ -74,6 +74,9 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, uploadedDa
   const [datasets, setDatasets] = useState<DataSet[]>([]);
   const [selectedDataset, setSelectedDataset] = useState<string>('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [sourceType, setSourceType] = useState<'dataset' | 'file' | 'mysql' | 'hive'>('file');
+  const [fileData, setFileData] = useState<any[]>(uploadedData);
+  const [dbConfig, setDbConfig] = useState({ host: '', port: '', database: '', user: '', password: '' });
   const { toast } = useToast();
   const analysisQueueRef = useRef<AnalysisQueueRef>(null);
 
@@ -82,6 +85,10 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, uploadedDa
       loadDatasets();
     }
   }, [user]);
+
+  useEffect(() => {
+    setFileData(uploadedData);
+  }, [uploadedData]);
 
   const loadDatasets = async () => {
     try {
@@ -109,6 +116,37 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, uploadedDa
     }
   };
 
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        let data: any[] = [];
+        const text = e.target?.result as string;
+        if (file.name.endsWith('.json')) {
+          data = JSON.parse(text);
+        } else {
+          const lines = text.split('\n').filter(Boolean);
+          const headers = lines[0].split(',');
+          data = lines.slice(1).map(line => {
+            const values = line.split(',');
+            const obj: any = {};
+            headers.forEach((h, idx) => {
+              obj[h.trim()] = values[idx]?.trim();
+            });
+            return obj;
+          });
+        }
+        setFileData(data);
+        toast({ title: '文件已上传', description: file.name });
+      } catch (err) {
+        toast({ title: '解析失败', description: '无法解析上传的文件', variant: 'destructive' });
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const runAnalysis = async () => {
     if (!selectedAnalysis) {
       toast({
@@ -122,15 +160,26 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, uploadedDa
     let dataToAnalyze: any[] = [];
     let dataSourceName = '';
 
-    if (selectedDataset) {
-      const dataset = datasets.find(d => d.id === selectedDataset);
-      if (dataset) {
-        dataToAnalyze = dataset.data;
-        dataSourceName = dataset.name;
+    if (sourceType === 'dataset') {
+      if (selectedDataset) {
+        const dataset = datasets.find(d => d.id === selectedDataset);
+        if (dataset) {
+          dataToAnalyze = dataset.data;
+          dataSourceName = dataset.name;
+        }
       }
-    } else if (uploadedData && uploadedData.length > 0) {
-      dataToAnalyze = uploadedData;
-      dataSourceName = '上传的数据';
+    } else if (sourceType === 'file') {
+      if (fileData && fileData.length > 0) {
+        dataToAnalyze = fileData;
+        dataSourceName = '上传的数据';
+      }
+    } else {
+      toast({
+        title: '暂不支持的来源',
+        description: '数据库数据源暂未实现',
+        variant: 'destructive'
+      });
+      return;
     }
 
     if (dataToAnalyze.length === 0) {
@@ -233,50 +282,96 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, uploadedDa
         <CardContent>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-2">选择数据集</label>
-              <Select value={selectedDataset} onValueChange={setSelectedDataset}>
+              <label className="block text-sm font-medium mb-2">数据来源</label>
+              <Select value={sourceType} onValueChange={(v) => setSourceType(v as any)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="选择要分析的数据集" />
+                  <SelectValue placeholder="选择数据来源" />
                 </SelectTrigger>
                 <SelectContent>
-                  {datasets.map((dataset) => (
-                    <SelectItem key={dataset.id} value={dataset.id}>
-                      <div className="flex flex-col">
-                        <span>{dataset.name}</span>
-                        <span className="text-xs text-gray-500">
-                          {dataset.data.length} 条记录
-                        </span>
-                      </div>
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="file">离线文件</SelectItem>
+                  <SelectItem value="dataset">已上传数据</SelectItem>
+                  <SelectItem value="mysql">MySQL</SelectItem>
+                  <SelectItem value="hive">Hive</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            {uploadedData && uploadedData.length > 0 && (
-              <div className="p-3 bg-blue-50 rounded-lg">
-                <div className="flex items-center space-x-2">
-                  <FileText className="h-4 w-4 text-blue-600" />
-                  <span className="text-sm font-medium">临时上传的数据</span>
-                  <Badge variant="secondary">{uploadedData.length} 条记录</Badge>
-                </div>
-                <p className="text-xs text-blue-600 mt-1">
-                  如果未选择数据集，将使用此临时数据进行分析
-                </p>
+            {sourceType === 'dataset' && (
+              <div>
+                <label className="block text-sm font-medium mb-2">选择数据集</label>
+                <Select value={selectedDataset} onValueChange={setSelectedDataset}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="选择要分析的数据集" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {datasets.map((dataset) => (
+                      <SelectItem key={dataset.id} value={dataset.id}>
+                        <div className="flex flex-col">
+                          <span>{dataset.name}</span>
+                          <span className="text-xs text-gray-500">
+                            {dataset.data.length} 条记录
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
 
-            {!selectedDataset && (!uploadedData || uploadedData.length === 0) && (
+            {sourceType === 'file' && (
+              <div>
+                <label className="block text-sm font-medium mb-2">上传文件</label>
+                <input type="file" accept=".csv,.txt,.json" onChange={handleFileUpload} />
+                {fileData && fileData.length > 0 && (
+                  <p className="text-xs text-gray-500 mt-1">已载入 {fileData.length} 条记录</p>
+                )}
+              </div>
+            )}
+
+            {(sourceType === 'mysql' || sourceType === 'hive') && (
+              <div className="space-y-2">
+                <input
+                  className="border p-2 w-full text-sm rounded"
+                  placeholder="主机"
+                  value={dbConfig.host}
+                  onChange={(e) => setDbConfig({ ...dbConfig, host: e.target.value })}
+                />
+                <input
+                  className="border p-2 w-full text-sm rounded"
+                  placeholder="端口"
+                  value={dbConfig.port}
+                  onChange={(e) => setDbConfig({ ...dbConfig, port: e.target.value })}
+                />
+                <input
+                  className="border p-2 w-full text-sm rounded"
+                  placeholder="数据库"
+                  value={dbConfig.database}
+                  onChange={(e) => setDbConfig({ ...dbConfig, database: e.target.value })}
+                />
+                <input
+                  className="border p-2 w-full text-sm rounded"
+                  placeholder="用户名"
+                  value={dbConfig.user}
+                  onChange={(e) => setDbConfig({ ...dbConfig, user: e.target.value })}
+                />
+                <input
+                  type="password"
+                  className="border p-2 w-full text-sm rounded"
+                  placeholder="密码"
+                  value={dbConfig.password}
+                  onChange={(e) => setDbConfig({ ...dbConfig, password: e.target.value })}
+                />
+                <p className="text-xs text-gray-500">数据库连接功能待实现</p>
+              </div>
+            )}
+
+            {sourceType === 'dataset' && datasets.length === 0 && (
               <div className="p-3 bg-yellow-50 rounded-lg">
                 <div className="flex items-center space-x-2">
                   <AlertCircle className="h-4 w-4 text-yellow-600" />
-                  <span className="text-sm font-medium text-yellow-800">
-                    没有可用的数据源
-                  </span>
+                  <span className="text-sm font-medium text-yellow-800">暂无数据集</span>
                 </div>
-                <p className="text-xs text-yellow-600 mt-1">
-                  请选择数据集或上传数据文件
-                </p>
               </div>
             )}
           </div>
@@ -304,7 +399,11 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, uploadedDa
               </div>
               <Button
                 onClick={runAnalysis}
-                disabled={isAnalyzing || (!selectedDataset && (!uploadedData || uploadedData.length === 0))}
+                disabled={
+                  isAnalyzing ||
+                  (sourceType === 'dataset' && !selectedDataset) ||
+                  (sourceType === 'file' && (!fileData || fileData.length === 0))
+                }
                 className="w-full"
                 size="lg"
               >
