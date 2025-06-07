@@ -498,14 +498,14 @@ export const ChatWidget = () => {
                   >
                     {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setIsOpen(false)}
-                    className="text-white hover:bg-blue-700 h-6 w-6 p-0"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsOpen(false)}
+                  className="text-white hover:bg-blue-700 h-6 w-6 p-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
                 </div>
               </div>
             </CardHeader>

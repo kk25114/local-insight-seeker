@@ -173,7 +173,7 @@ export const ModelManagement: React.FC<ModelManagementProps> = ({ user }) => {
         {
           name: 'Grok 3 Fast Beta',
           provider: 'xai',
-          model_id: 'grok-3-fast-beta', 
+          model_id: 'grok-3-fast-beta',
           api_key_name: 'XAI_API_KEY',
           is_active: true,
         }
@@ -186,7 +186,7 @@ export const ModelManagement: React.FC<ModelManagementProps> = ({ user }) => {
       if (error) {
         throw error;
       }
-
+      
       toast({
         title: "初始化成功",
         description: "已添加默认AI模型",

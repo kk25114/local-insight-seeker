@@ -3,10 +3,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Play, Database, FileText, AlertCircle } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { FileText, AlertCircle, Upload, Eye, Play, Database } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { AnalysisQueue, AnalysisQueueRef } from './AnalysisQueue';
+import { DatabaseConnection } from './DatabaseConnection';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { analysisConfig } from '@/config/analysis';
 
@@ -31,14 +35,35 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, uploadedDa
   const [datasets, setDatasets] = useState<DataSet[]>([]);
   const [selectedDataset, setSelectedDataset] = useState<string>('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [fileData, setFileData] = useState<any[]>([]);
+  const [previewData, setPreviewData] = useState<any[]>([]);
   const { toast } = useToast();
   const analysisQueueRef = useRef<AnalysisQueueRef>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (user) {
       loadDatasets();
     }
   }, [user]);
+
+  // 更新预览数据
+  useEffect(() => {
+    let dataToPreview: any[] = [];
+    
+    if (selectedDataset) {
+      const dataset = datasets.find(d => d.id === selectedDataset);
+      if (dataset) {
+        dataToPreview = dataset.data;
+      }
+    } else if (fileData && fileData.length > 0) {
+      dataToPreview = fileData;
+    } else if (uploadedData && uploadedData.length > 0) {
+      dataToPreview = uploadedData;
+    }
+    
+    setPreviewData(dataToPreview.slice(0, 5)); // 显示前5行
+  }, [selectedDataset, fileData, uploadedData, datasets]);
 
   const loadDatasets = async () => {
     try {
@@ -66,108 +91,111 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, uploadedDa
     }
   };
 
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result as string;
+        if (file.name.endsWith('.csv')) {
+          // 解析CSV文件
+          const lines = text.split('\n').filter(line => line.trim());
+          const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+          const data = lines.slice(1).map(line => {
+            const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
+            const row: any = {};
+            headers.forEach((header, index) => {
+              row[header] = values[index] || '';
+            });
+            return row;
+          });
+          setFileData(data);
+          toast({
+            title: "文件上传成功",
+            description: `已解析 ${data.length} 条数据记录`,
+          });
+        } else if (file.name.endsWith('.json')) {
+          // 解析JSON文件
+          const data = JSON.parse(text);
+          const arrayData = Array.isArray(data) ? data : [data];
+          setFileData(arrayData);
+          toast({
+            title: "文件上传成功",
+            description: `已解析 ${arrayData.length} 条数据记录`,
+          });
+        }
+      } catch (error) {
+        console.error('文件解析失败:', error);
+        toast({
+          title: "文件解析失败",
+          description: "请确保文件格式正确（CSV或JSON）",
+          variant: "destructive",
+        });
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // 处理数据库连接组件的数据更新
+  const handleDatabaseDataUpdate = (data: any[]) => {
+    setPreviewData(data.slice(0, 5));
+  };
+
   const runAnalysis = async () => {
-    if (!selectedAnalysis) {
-      toast({
-        title: "请选择分析方法",
-        description: "请从左侧选择要进行的分析方法",
-        variant: "destructive",
-      });
+    if (!user) {
+      onAuthRequired?.();
       return;
     }
 
     let dataToAnalyze: any[] = [];
-    let dataSourceName = '';
-
+    
     if (selectedDataset) {
       const dataset = datasets.find(d => d.id === selectedDataset);
       if (dataset) {
         dataToAnalyze = dataset.data;
-        dataSourceName = dataset.name;
       }
+    } else if (fileData && fileData.length > 0) {
+      dataToAnalyze = fileData;
     } else if (uploadedData && uploadedData.length > 0) {
       dataToAnalyze = uploadedData;
-      dataSourceName = '上传的数据';
     }
 
     if (dataToAnalyze.length === 0) {
       toast({
         title: "没有可分析的数据",
-        description: "请选择数据集或上传数据文件",
+        description: "请先选择数据集、上传文件或连接数据库",
         variant: "destructive",
       });
       return;
     }
 
-    const analysisInfo = analysisConfig[selectedAnalysis as keyof typeof analysisConfig];
-    const taskName = `${analysisInfo?.title || selectedAnalysis} - ${dataSourceName}`;
-
-    // 添加到分析队列
-    const taskId = analysisQueueRef.current?.addTask(taskName);
+    if (!selectedAnalysis) {
+      toast({
+        title: "请选择分析方法",
+        description: "请从左侧选择要执行的统计分析方法",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsAnalyzing(true);
 
     try {
-      // 模拟分析过程
-      if (taskId) {
-        analysisQueueRef.current?.updateTask(taskId, { status: 'running', progress: 10 });
-      }
-
-      // 调用分析API
-      const { data: result, error } = await supabase.functions.invoke('analyze-data', {
-        body: {
-          data: dataToAnalyze,
-          analysis_type: selectedAnalysis,
-          user_id: user?.id
-        }
-      });
-
-      if (error) throw error;
-
-      // 更新进度
-      if (taskId) {
-        analysisQueueRef.current?.updateTask(taskId, { status: 'running', progress: 80 });
-      }
-
-      // 保存分析结果
-      if (user) {
-        await supabase.from('analysis_logs').insert({
-          user_id: user.id,
-          prompt: `${selectedAnalysis} analysis on ${dataSourceName}`,
-          model_id: 'system',
-          provider: 'internal',
-          result: JSON.stringify(result)
-        });
-      }
-
-      // 完成任务
-      if (taskId) {
-        analysisQueueRef.current?.updateTask(taskId, { 
-          status: 'completed', 
-          progress: 100, 
-          completedAt: new Date(),
-          result: JSON.stringify(result)
-        });
-      }
+      analysisQueueRef.current?.addTask(
+        `${analysisConfig[selectedAnalysis]?.name || selectedAnalysis} 分析`
+      );
 
       toast({
-        title: "分析完成",
-        description: `${analysisInfo?.title || selectedAnalysis}分析已完成`,
+        title: "分析已启动",
+        description: `正在执行 ${analysisConfig[selectedAnalysis]?.name || selectedAnalysis} 分析`,
       });
-
     } catch (error) {
-      console.error('分析失败:', error);
-      
-      if (taskId) {
-        analysisQueueRef.current?.updateTask(taskId, { 
-          status: 'failed', 
-          error: error instanceof Error ? error.message : '分析过程中出现错误'
-        });
-      }
-
+      console.error('分析执行失败:', error);
       toast({
         title: "分析失败",
-        description: "分析过程中出现错误，请稍后重试",
+        description: "执行分析时发生错误",
         variant: "destructive",
       });
     } finally {
@@ -176,127 +204,160 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, uploadedDa
   };
 
   const currentAnalysis = analysisConfig[selectedAnalysis as keyof typeof analysisConfig];
+  const hasData = selectedDataset || fileData.length > 0 || (uploadedData && uploadedData.length > 0);
 
   return (
-    <div className="space-y-6">
-      {/* 数据源选择 */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
+    <div className="flex flex-col h-full">
+      {/* 分析按钮区域 - 仅在选择分析方法时显示 */}
+      {selectedAnalysis && currentAnalysis && (
+        <div className="p-4 border-b bg-white rounded-t-lg">
+          <h3 className="font-semibold">{currentAnalysis.title}</h3>
+          <p className="text-sm text-gray-600 mt-1">{currentAnalysis.description}</p>
+          <Button
+            onClick={runAnalysis}
+            disabled={!user || isAnalyzing || !hasData}
+            className="w-full mt-4"
+            size="lg"
+          >
+            {isAnalyzing ? '分析中...' : '开始分析'}
+          </Button>
+        </div>
+      )}
+
+      {/* 数据源选择区域 */}
+      <Card className="flex-1 flex flex-col overflow-hidden border-0 rounded-none">
+        {/* 固定头部 */}
+        <div className="flex-shrink-0 bg-white p-4 border-b">
+          <CardTitle className="flex items-center space-x-2 text-base">
             <Database className="h-5 w-5" />
             <span>数据源选择</span>
           </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {!user && (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
-                <div className="flex items-start space-x-2">
-                  <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
+        </div>
+
+        {/* Tab 切换 */}
+        <Tabs defaultValue="database" className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-shrink-0 px-4 border-b">
+            <TabsList className="bg-transparent p-0 border-none -mb-px">
+              <TabsTrigger value="datasets">现有数据集</TabsTrigger>
+              <TabsTrigger value="upload">文件上传</TabsTrigger>
+              <TabsTrigger value="database">数据库连接</TabsTrigger>
+            </TabsList>
+          </div>
+          
+          {/* 可滚动内容区 */}
+          <div className="flex-1 overflow-y-auto">
+            {!user ? (
+              <div className="p-6 text-center text-gray-500">
+                <AlertCircle className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">请先登录</h3>
+                <p className="mt-1 text-sm text-gray-500">登录后即可访问和管理您的数据源。</p>
+                <div className="mt-6">
+                  <Button onClick={onAuthRequired}>
+                    前往登录
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <TabsContent value="datasets" className="p-6">
                   <div>
-                    <p className="text-sm text-amber-800">
-                      未登录用户只能查看界面和功能介绍。如需使用完整分析功能，请
-                      <span 
-                        className="font-medium cursor-pointer text-amber-900 hover:underline"
-                        onClick={() => onAuthRequired?.()}
-                      >
-                        登录
-                      </span>
-                      或
-                      <span 
-                        className="font-medium cursor-pointer text-amber-900 hover:underline"
-                        onClick={() => onAuthRequired?.()}
-                      >
-                        注册
-                      </span>。
-                    </p>
+                    <Label htmlFor="dataset-select">选择数据集</Label>
+                    <Select value={selectedDataset} onValueChange={setSelectedDataset} disabled={!user}>
+                      <SelectTrigger className={!user ? 'opacity-60 cursor-not-allowed' : ''}>
+                        <SelectValue placeholder={user ? "选择要分析的数据集" : "请登录后选择数据集"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {datasets.map((dataset) => (
+                          <SelectItem key={dataset.id} value={dataset.id}>
+                            <div className="flex flex-col">
+                              <span>{dataset.name}</span>
+                              <span className="text-xs text-gray-500">
+                                {dataset.data.length} 条记录
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                </div>
-              </div>
-            )}
-            <div>
-              <label className="block text-sm font-medium mb-2">选择数据集</label>
-              <Select value={selectedDataset} onValueChange={setSelectedDataset} disabled={!user}>
-                <SelectTrigger className={!user ? 'opacity-60 cursor-not-allowed' : ''}>
-                  <SelectValue placeholder={user ? "选择要分析的数据集" : "请登录后选择数据集"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {datasets.map((dataset) => (
-                    <SelectItem key={dataset.id} value={dataset.id}>
-                      <div className="flex flex-col">
-                        <span>{dataset.name}</span>
-                        <span className="text-xs text-gray-500">
-                          {dataset.data.length} 条记录
-                        </span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                </TabsContent>
 
-            {uploadedData && uploadedData.length > 0 && (
-              <div className="p-3 bg-blue-50 rounded-lg">
-                <div className="flex items-center space-x-2">
-                  <FileText className="h-4 w-4 text-blue-600" />
-                  <span className="text-sm font-medium">临时上传的数据</span>
-                  <Badge variant="secondary">{uploadedData.length} 条记录</Badge>
-                </div>
-                <p className="text-xs text-blue-600 mt-1">
-                  如果未选择数据集，将使用此临时数据进行分析
-                </p>
-              </div>
-            )}
-
-            {!selectedDataset && (!uploadedData || uploadedData.length === 0) && (
-              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <div className="flex items-start">
-                  <div className="flex-shrink-0">
-                    <AlertCircle className="h-5 w-5 text-yellow-400" />
-                  </div>
-                  <div className="ml-3">
-                    <h3 className="text-sm font-medium text-yellow-800">
-                      没有可用的数据源
-                    </h3>
-                    <div className="mt-2 text-sm text-yellow-700">
-                      <p>
-                        请选择数据集或上传数据文件
-                      </p>
+                <TabsContent value="upload" className="p-6">
+                  <div>
+                    <Label htmlFor="file-upload">上传数据文件</Label>
+                    <div className="mt-2">
+                      <Button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={!user}
+                        variant="outline"
+                        className="w-full"
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        {!user ? '请登录后上传文件' : '选择文件 (CSV, JSON)'}
+                      </Button>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".csv,.json"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                      />
                     </div>
+                    {fileData.length > 0 && (
+                      <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="flex items-center space-x-2">
+                          <FileText className="h-4 w-4 text-green-600" />
+                          <span className="text-sm font-medium text-green-800">文件已上传</span>
+                          <Badge variant="secondary">{fileData.length} 条记录</Badge>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              </div>
+                </TabsContent>
+
+                <TabsContent value="database" className="m-0">
+                  <DatabaseConnection user={user} onDataUpdate={handleDatabaseDataUpdate} />
+                </TabsContent>
+              </>
             )}
           </div>
-        </CardContent>
+        </Tabs>
       </Card>
 
-      {/* 分析说明 */}
-      {selectedAnalysis && currentAnalysis && (
+      {/* 数据预览区域 */}
+      {previewData.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
-              <Play className="h-5 w-5" />
-              <span>{currentAnalysis.title}</span>
+              <Eye className="h-5 w-5" />
+              <span>数据预览 (前5行)</span>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <h4 className="font-semibold text-base mb-1">分析说明</h4>
-              <p className="text-sm text-gray-600">{currentAnalysis.description}</p>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse border border-gray-300">
+                <thead>
+                  <tr className="bg-gray-50">
+                    {Object.keys(previewData[0] || {}).map((key) => (
+                      <th key={key} className="border border-gray-300 px-4 py-2 text-left text-sm font-medium text-gray-700">
+                        {key}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {previewData.map((row, index) => (
+                    <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      {Object.values(row).map((value, cellIndex) => (
+                        <td key={cellIndex} className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
+                          {String(value)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            <div>
-              <h4 className="font-semibold text-base mb-1">使用示例</h4>
-              <p className="text-sm text-gray-600">{currentAnalysis.example}</p>
-            </div>
-            <Button
-              onClick={runAnalysis}
-              disabled={!user || isAnalyzing || (!selectedDataset && (!uploadedData || uploadedData.length === 0))}
-              className={`w-full ${!user ? 'bg-gray-100 hover:bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
-              size="lg"
-            >
-              {!user ? '请登录后开始分析' : isAnalyzing ? '分析中...' : '开始分析'}
-            </Button>
           </CardContent>
         </Card>
       )}

@@ -180,7 +180,7 @@ const Index = () => {
   try {
     return (
       <>
-        <div className="min-h-screen flex w-full bg-gray-50">
+        <div className="flex h-screen w-full bg-gray-50">
           {currentView === 'analysis' && (
             <AnalysisSidebar 
               selectedAnalysis={selectedAnalysis}
@@ -188,14 +188,14 @@ const Index = () => {
               onLogoClick={() => handleViewChange('analysis')}
             />
           )}
-          <div className="flex-1 flex flex-col">
+          <div className="flex-1 flex flex-col overflow-hidden">
             <MainHeader 
               onDataUpload={setUploadedData}
               user={user}
               currentView={currentView}
               onViewChange={handleViewChange}
             />
-            <main className="flex-1 p-6 overflow-auto">
+            <main className="flex-1 p-6 overflow-y-auto bg-gray-100">
               {renderContent()}
             </main>
           </div>

@@ -165,9 +165,9 @@ export const MainHeader: React.FC<MainHeaderProps> = ({ onDataUpload, user, curr
                   size="sm" 
                   className="flex items-center space-x-2"
                 >
-                  <User className="h-4 w-4" />
-                  <span>{user.email}</span>
-                </Button>
+                    <User className="h-4 w-4" />
+                    <span>{user.email}</span>
+                  </Button>
                 
                 {/* 用户下拉菜单 */}
                 <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">

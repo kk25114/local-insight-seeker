@@ -6,6 +6,11 @@ import {
   AccordionContent,
 } from "@/components/ui/accordion";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   BarChart3,
   TrendingUp,
   PieChart,
@@ -23,13 +28,6 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -60,6 +58,22 @@ interface AnalysisDetail {
 }
 
 const defaultAnalysisCategories = [
+  {
+    label: "基础统计指标",
+    items: [
+      { title: "平均数", icon: Calculator, key: "mean" },
+      { title: "方差", icon: Calculator, key: "variance" },
+      { title: "标准差", icon: Calculator, key: "std_dev" },
+      { title: "中位数", icon: Calculator, key: "median" },
+      { title: "众数", icon: Calculator, key: "mode" },
+      { title: "最大值", icon: Calculator, key: "max" },
+      { title: "最小值", icon: Calculator, key: "min" },
+      { title: "极差", icon: Calculator, key: "range" },
+      { title: "四分位数", icon: Calculator, key: "quartiles" },
+      { title: "偏度", icon: Calculator, key: "skewness" },
+      { title: "峰度", icon: Calculator, key: "kurtosis" },
+    ]
+  },
   {
     label: "通用方法",
     items: [
@@ -130,23 +144,12 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [customAlgorithms, setCustomAlgorithms] = useState<Algorithm[]>([]);
   const [dropdownValue, setDropdownValue] = useState('option1');
-  const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false);
-  const [currentAnalysisInfo, setCurrentAnalysisInfo] = useState<AnalysisDetail | null>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   // 加载自定义算法
   useEffect(() => {
     loadCustomAlgorithms();
   }, []);
-
-  const handleInfoClick = (e: React.MouseEvent, itemKey: string) => {
-    e.stopPropagation(); // 防止触发行选择
-    const analysisInfo = analysisConfig[itemKey as keyof typeof analysisConfig];
-    if (analysisInfo) {
-      setCurrentAnalysisInfo(analysisInfo);
-      setIsInfoDialogOpen(true);
-    }
-  };
 
   const loadCustomAlgorithms = async () => {
     try {
@@ -227,18 +230,18 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
     }`}>
       {/* 顶部折叠区域 */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setIsCollapsed(!isCollapsed)}
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setIsCollapsed(!isCollapsed)}
           className="h-8 w-8 p-0 hover:bg-gray-200 rounded-full"
-        >
+      >
           {isCollapsed ? (
             <ChevronRight className="h-4 w-4" />
           ) : (
             <ChevronLeft className="h-4 w-4" />
           )}
-        </Button>
+      </Button>
         
         {!isCollapsed && (
           <div 
@@ -279,7 +282,7 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
             ) : (
               <Accordion
                 type="multiple"
-                defaultValue={filteredCategories.map(c => c.label)}
+                defaultValue={[filteredCategories[0]?.label].filter(Boolean)}
                 className="w-full"
               >
                 {filteredCategories.map((category) => (
@@ -308,10 +311,97 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
                               <item.icon className="h-4 w-4 flex-shrink-0" />
                               <span className="truncate">{item.title}</span>
                             </div>
-                            <Info 
-                              className="h-4 w-4 text-gray-400 group-hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                              onClick={(e) => handleInfoClick(e, item.key)}
-                            />
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Info 
+                                  className="h-4 w-4 text-gray-400 group-hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 cursor-pointer"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                  }}
+                                />
+                              </PopoverTrigger>
+                              <PopoverContent className="w-96 p-4 shadow-md border border-gray-300 bg-white" side="right" align="start">
+                                {(() => {
+                                  const analysisInfo = analysisConfig[item.key as keyof typeof analysisConfig];
+                                  return analysisInfo ? (
+                                    <div className="max-h-[500px] overflow-y-auto space-y-4">
+                                      {/* 标题 */}
+                                      <div className="border-b border-gray-200 pb-2">
+                                        <h3 className="font-bold text-base text-gray-800">{analysisInfo.title}</h3>
+                                      </div>
+                                      
+                                      {/* 定义 */}
+                                      {(() => {
+                                        const parts = analysisInfo.description.split('\n\n');
+                                        const definitionPart = parts.find(p => p.includes('📖 定义'));
+                                        
+                                        return definitionPart && (
+                                          <div>
+                                            <div className="font-semibold text-sm text-gray-700 mb-2">
+                                              📖 定义
+                                            </div>
+                                            <div className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
+                                              {definitionPart.replace('📖 定义\n', '')}
+                                            </div>
+                                          </div>
+                                        );
+                                      })()}
+                                      
+                                      {/* 计算公式 */}
+                                      {(() => {
+                                        const parts = analysisInfo.description.split('\n\n');
+                                        const formulaPart = parts.find(p => p.includes('📐 计算公式'));
+                                        
+                                        return formulaPart && (
+                                          <div>
+                                            <div className="font-semibold text-sm text-gray-700 mb-2">
+                                              📐 计算公式
+                                            </div>
+                                            <div className="text-sm text-gray-600 leading-relaxed bg-gray-50 p-2 rounded border font-mono whitespace-pre-line">
+                                              {formulaPart.replace('📐 计算公式\n', '')}
+                                            </div>
+                                          </div>
+                                        );
+                                      })()}
+                                      
+                                      {/* 考试数据举例 */}
+                                      {(() => {
+                                        const parts = analysisInfo.example.split('\n\n');
+                                        const examplePart = parts.find(p => p.includes('📊 考试数据举例'));
+                                        
+                                        return examplePart && (
+                                          <div>
+                                            <div className="font-semibold text-sm text-gray-700 mb-2">
+                                              📊 考试数据举例
+                                            </div>
+                                            <div className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
+                                              {examplePart.replace('📊 考试数据举例\n', '')}
+                                            </div>
+                                          </div>
+                                        );
+                                      })()}
+                                      
+                                      {/* 应用场景 */}
+                                      {(() => {
+                                        const parts = analysisInfo.example.split('\n\n');
+                                        const scenarioPart = parts.find(p => p.includes('💡 应用场景'));
+                                        
+                                        return scenarioPart && (
+                                          <div>
+                                            <div className="font-semibold text-sm text-gray-700 mb-2">
+                                              💡 应用场景
+                                            </div>
+                                            <div className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
+                                              {scenarioPart.replace('💡 应用场景\n', '')}
+                                            </div>
+                                          </div>
+                                        );
+                                      })()}
+                                    </div>
+                                  ) : null;
+                                })()}
+                              </PopoverContent>
+                            </Popover>
                           </div>
                         ))}
                       </div>
@@ -329,11 +419,11 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
         <div className="py-3 space-y-2">
           {analysisCategories.slice(0, 8).map((category, categoryIndex) => (
             <div key={category.label} className="px-2">
-              {category.items.slice(0, 1).map((item) => (
-                <Button
-                  key={item.key}
-                  variant="ghost"
-                  size="sm"
+                {category.items.slice(0, 1).map((item) => (
+                  <Button
+                    key={item.key}
+                    variant="ghost"
+                    size="sm"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -341,39 +431,19 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
                     onSelectAnalysis(item.key);
                   }}
                   className={`w-full h-10 p-0 rounded-lg transition-colors ${
-                    selectedAnalysis === item.key
+                      selectedAnalysis === item.key
                       ? 'bg-blue-100 text-blue-700 border border-blue-200'
                       : 'hover:bg-blue-50 hover:text-blue-700'
-                  }`}
+                    }`}
                   title={`${category.label} - ${item.title}`}
-                >
-                  <item.icon className="h-4 w-4" />
-                </Button>
-              ))}
-            </div>
-          ))}
-        </div>
-      )}
-      
-      <Dialog open={isInfoDialogOpen} onOpenChange={setIsInfoDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{currentAnalysisInfo?.title}</DialogTitle>
-            <DialogDescription asChild>
-              <div className="space-y-4 mt-4">
-                <div>
-                  <h4 className="font-semibold text-base mb-1">分析说明</h4>
-                  <p className="text-sm text-gray-600">{currentAnalysisInfo?.description}</p>
-                </div>
-                <div>
-                  <h4 className="font-semibold text-base mb-1">使用示例</h4>
-                  <p className="text-sm text-gray-600">{currentAnalysisInfo?.example}</p>
-                </div>
+                  >
+                    <item.icon className="h-4 w-4" />
+                  </Button>
+                ))}
               </div>
-            </DialogDescription>
-          </DialogHeader>
-        </DialogContent>
-      </Dialog>
+            ))}
+          </div>
+      )}
     </div>
   );
 };
