@@ -20,13 +20,69 @@ const renderMarkdown = (text: string) => {
   // 预处理：统一换行符
   html = html.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
-  // 处理代码块 (``` 多行代码块) - 必须在其他处理之前
-  html = html.replace(/```([a-zA-Z]*)\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+    // 处理代码块 (``` 多行代码块) - 必须在其他处理之前
+  html = html.replace(/```([a-zA-Z]*)\n?([\s\S]*?)```/g, (match, lang, code) => {
+    // 移除代码开头和结尾的空行，但保持内部换行
+    const cleanCode = code.trim().replace(/\n/g, '<br>');
+    const language = lang ? lang.toLowerCase() : 'text';
+    
+    // 语言映射，处理常见的语言标识
+    const languageMap: { [key: string]: string } = {
+      'python': 'Python',
+      'py': 'Python',
+      'r': 'R',
+      'sql': 'SQL',
+      'javascript': 'JavaScript',
+      'js': 'JavaScript',
+      'typescript': 'TypeScript',
+      'ts': 'TypeScript',
+      'java': 'Java',
+      'cpp': 'C++',
+      'c++': 'C++',
+      'c': 'C',
+      'csharp': 'C#',
+      'cs': 'C#',
+      'php': 'PHP',
+      'ruby': 'Ruby',
+      'go': 'Go',
+      'rust': 'Rust',
+      'swift': 'Swift',
+      'kotlin': 'Kotlin',
+      'scala': 'Scala',
+      'matlab': 'MATLAB',
+      'spss': 'SPSS',
+      'sas': 'SAS',
+      'stata': 'Stata',
+      'bash': 'Bash',
+      'shell': 'Shell',
+      'powershell': 'PowerShell',
+      'json': 'JSON',
+      'xml': 'XML',
+      'yaml': 'YAML',
+      'yml': 'YAML',
+      'css': 'CSS',
+      'html': 'HTML',
+      'markdown': 'Markdown',
+      'md': 'Markdown'
+    };
+    
+    const langDisplay = language === 'text' ? '' : (languageMap[language] || language.toUpperCase());
+    
+    console.log('Processing code block:', { language, langDisplay }); // 调试信息
+    
+    return `<div class="code-block-container" style="position: relative; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; margin: 12px 0; padding: 0; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+      ${langDisplay ? `<div style="position: absolute; top: 8px; right: 8px; z-index: 10; background: #dbeafe; color: #1d4ed8; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; border: 1px solid #93c5fd;">${langDisplay}</div>` : ''}
+      <pre style="margin: 0; padding: ${langDisplay ? '40px 12px 12px 12px' : '12px'}; overflow-x: auto; font-family: monospace; font-size: 13px; color: #374151; line-height: 1.5;"><code>${cleanCode}</code></pre>
+    </div>`;
+  });
   
-  // 处理标题 (# ## ###) - 支持空格容错
-  html = html.replace(/^#{3}\s+(.*)$/gm, '<h3 class="text-lg font-semibold">$1</h3>');
-  html = html.replace(/^#{2}\s+(.*)$/gm, '<h2 class="text-xl font-semibold">$1</h2>');
-  html = html.replace(/^#{1}\s+(.*)$/gm, '<h1 class="text-2xl font-bold">$1</h1>');
+  // 处理标题 (# ## ### #### ##### ######) - 支持空格容错
+  html = html.replace(/^#{6}\s+(.*)$/gm, '<h6 class="text-sm font-medium text-gray-700 mb-2">$1</h6>');
+  html = html.replace(/^#{5}\s+(.*)$/gm, '<h5 class="text-sm font-semibold text-gray-800 mb-2">$1</h5>');
+  html = html.replace(/^#{4}\s+(.*)$/gm, '<h4 class="text-base font-semibold text-gray-800 mb-3">$1</h4>');
+  html = html.replace(/^#{3}\s+(.*)$/gm, '<h3 class="text-lg font-semibold text-gray-900 mb-3">$1</h3>');
+  html = html.replace(/^#{2}\s+(.*)$/gm, '<h2 class="text-xl font-semibold text-gray-900 mb-4">$1</h2>');
+  html = html.replace(/^#{1}\s+(.*)$/gm, '<h1 class="text-2xl font-bold text-gray-900 mb-4">$1</h1>');
   
   // 处理链接 [text](url) - 改进正则避免嵌套问题
   html = html.replace(/\[([^\[\]]*)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-600 hover:text-blue-800 underline" target="_blank" rel="noopener noreferrer">$1</a>');
@@ -79,7 +135,7 @@ const renderMarkdown = (text: string) => {
   html = html.replace(/^>\s*(.+)$/gm, '<blockquote class="border-l-4 border-gray-300 pl-4 py-1 bg-gray-50 italic">$1</blockquote>');
   
   // 处理行内代码 `code` - 必须在换行处理之前
-  html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+  html = html.replace(/`([^`\n]+)`/g, '<code class="bg-gray-100 text-gray-800 px-2 py-1 rounded border border-gray-200 font-mono text-sm">$1</code>');
   
   // 处理分割线
   html = html.replace(/^---+$/gm, '<hr class="border-gray-300" />');
@@ -93,6 +149,117 @@ const renderMarkdown = (text: string) => {
 export const ChatWidget = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // 添加样式到页面头部
+  React.useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      .markdown-content pre {
+        white-space: pre-wrap !important;
+        word-wrap: break-word !important;
+        overflow-x: auto !important;
+        margin: 0 !important;
+        line-height: 1.5 !important;
+      }
+      .markdown-content code {
+        white-space: pre-wrap !important;
+        word-wrap: break-word !important;
+      }
+      .markdown-content ul {
+        list-style-type: none !important;
+        padding-left: 1rem !important;
+      }
+      .markdown-content ul li {
+        margin: 0.25rem 0 !important;
+      }
+      .markdown-content div {
+        position: relative;
+      }
+      
+      /* 移除输入框的默认focus样式 */
+      input:focus {
+        outline: none !important;
+        box-shadow: none !important;
+        ring: 0 !important;
+      }
+      
+      /* 代码块样式优化 */
+      .markdown-content pre code br {
+        line-height: 1.6;
+      }
+      
+      /* 代码块容器样式 */
+      .markdown-content .code-block-container {
+        position: relative !important;
+      }
+      
+      .markdown-content .code-block-container pre {
+        margin: 0 !important;
+        white-space: pre-wrap !important;
+        word-wrap: break-word !important;
+        overflow-x: auto !important;
+      }
+      
+      .markdown-content .code-block-container code {
+        white-space: pre-wrap !important;
+        word-wrap: break-word !important;
+      }
+      
+      /* 标题样式 */
+      .markdown-content h1 {
+        font-size: 1.5rem !important;
+        font-weight: 700 !important;
+        color: #111827 !important;
+        margin: 0.5rem 0 0.25rem 0 !important;
+        line-height: 1.25 !important;
+      }
+      
+      .markdown-content h2 {
+        font-size: 1.25rem !important;
+        font-weight: 600 !important;
+        color: #111827 !important;
+        margin: 0.4rem 0 0.2rem 0 !important;
+        line-height: 1.3 !important;
+      }
+      
+      .markdown-content h3 {
+        font-size: 1.125rem !important;
+        font-weight: 600 !important;
+        color: #111827 !important;
+        margin: 0.35rem 0 0.15rem 0 !important;
+        line-height: 1.35 !important;
+      }
+      
+      .markdown-content h4 {
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        color: #374151 !important;
+        margin: 0.3rem 0 0.1rem 0 !important;
+        line-height: 1.4 !important;
+      }
+      
+      .markdown-content h5 {
+        font-size: 0.875rem !important;
+        font-weight: 600 !important;
+        color: #374151 !important;
+        margin: 0.25rem 0 0.05rem 0 !important;
+        line-height: 1.4 !important;
+      }
+      
+      .markdown-content h6 {
+        font-size: 0.75rem !important;
+        font-weight: 500 !important;
+        color: #6b7280 !important;
+        margin: 0.2rem 0 0.05rem 0 !important;
+        line-height: 1.4 !important;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -362,7 +529,10 @@ export const ChatWidget = () => {
                     >
                       <div
                         className="leading-relaxed markdown-content"
-                        style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
+                        style={{ 
+                          wordBreak: 'break-word', 
+                          overflowWrap: 'break-word'
+                        }}
                         dangerouslySetInnerHTML={{
                           __html: renderMarkdown(message.content)
                         }}
@@ -395,9 +565,8 @@ export const ChatWidget = () => {
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
                   placeholder="输入消息..."
-                  className={`flex-1 ${isExpanded ? 'text-sm' : 'text-sm'}`}
+                  className={`flex-1 ${isExpanded ? 'text-sm' : 'text-sm'} border-gray-300 hover:border-blue-500 focus:border-blue-600 focus:ring-0 focus:outline-none transition-colors`}
                   onKeyPress={handleKeyPress}
-                  disabled={isLoading}
                 />
                 <Button
                   onClick={sendMessage}

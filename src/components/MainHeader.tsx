@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Upload, Play, FileText, Database, Settings, User, Bell, LogOut, Cog, GitBranch, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -19,52 +19,9 @@ export const MainHeader: React.FC<MainHeaderProps> = ({ onDataUpload, user, curr
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const [analysisMode, setAnalysisMode] = useState<string>('basic');
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [isGuestMenuOpen, setIsGuestMenuOpen] = useState(false);
-  const [userMenuTimer, setUserMenuTimer] = useState<NodeJS.Timeout | null>(null);
-  const [guestMenuTimer, setGuestMenuTimer] = useState<NodeJS.Timeout | null>(null);
 
-  const handleUserMenuEnter = () => {
-    if (userMenuTimer) {
-      clearTimeout(userMenuTimer);
-      setUserMenuTimer(null);
-    }
-    setIsUserMenuOpen(true);
-  };
 
-  const handleUserMenuLeave = () => {
-    const timer = setTimeout(() => {
-      setIsUserMenuOpen(false);
-    }, 150); // 150ms延迟
-    setUserMenuTimer(timer);
-  };
 
-  const handleGuestMenuEnter = () => {
-    if (guestMenuTimer) {
-      clearTimeout(guestMenuTimer);
-      setGuestMenuTimer(null);
-    }
-    setIsGuestMenuOpen(true);
-  };
-
-  const handleGuestMenuLeave = () => {
-    const timer = setTimeout(() => {
-      setIsGuestMenuOpen(false);
-    }, 150); // 150ms延迟
-    setGuestMenuTimer(timer);
-  };
-
-  // 清理定时器
-  useEffect(() => {
-    return () => {
-      if (userMenuTimer) {
-        clearTimeout(userMenuTimer);
-      }
-      if (guestMenuTimer) {
-        clearTimeout(guestMenuTimer);
-      }
-    };
-  }, [userMenuTimer, guestMenuTimer]);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -180,20 +137,21 @@ export const MainHeader: React.FC<MainHeaderProps> = ({ onDataUpload, user, curr
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => onViewChange('data')}
                 className="flex items-center space-x-2"
               >
-                <Upload className="h-4 w-4" />
-                <span>上传数据</span>
+                <Database className="h-4 w-4" />
+                <span>我的数据</span>
               </Button>
               
               <Button
+                variant="outline"
                 size="sm"
-                onClick={handleStartAnalysis}
-                className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700"
+                onClick={() => onViewChange('about')}
+                className="flex items-center space-x-2"
               >
-                <Play className="h-4 w-4" />
-                <span>开始分析</span>
+                <FileText className="h-4 w-4" />
+                <span>文档</span>
               </Button>
             </>
           )}
@@ -201,103 +159,116 @@ export const MainHeader: React.FC<MainHeaderProps> = ({ onDataUpload, user, curr
           <div className="flex items-center space-x-2 text-sm text-gray-600">
             <Bell className="h-4 w-4 cursor-pointer hover:text-blue-600" />
             {user ? (
-              <DropdownMenu open={isUserMenuOpen} onOpenChange={setIsUserMenuOpen}>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="flex items-center space-x-2"
-                    onMouseEnter={handleUserMenuEnter}
-                    onMouseLeave={handleUserMenuLeave}
-                  >
-                    <User className="h-4 w-4" />
-                    <span>{user.email}</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent 
-                  align="end" 
-                  className="w-48"
-                  onMouseEnter={handleUserMenuEnter}
-                  onMouseLeave={handleUserMenuLeave}
+              <div className="relative group">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="flex items-center space-x-2"
                 >
-                  <DropdownMenuItem onClick={() => onViewChange('analysis')}>
+                  <User className="h-4 w-4" />
+                  <span>{user.email}</span>
+                </Button>
+                
+                {/* 用户下拉菜单 */}
+                <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                  <div 
+                    className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center"
+                    onClick={() => onViewChange('analysis')}
+                  >
                     <div className="w-4 h-4 bg-blue-600 rounded-sm flex items-center justify-center mr-2">
                       <span className="text-white text-xs font-bold">S</span>
                     </div>
                     <span className="text-blue-600 font-semibold">SPSSAI</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => onViewChange('analysis')}>
+                  </div>
+                  <div className="border-t border-gray-200 my-1"></div>
+                  <div 
+                    className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center"
+                    onClick={() => onViewChange('analysis')}
+                  >
                     <FileText className="h-4 w-4 mr-2" />
                     <span>数据分析</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onViewChange('algorithms')}>
+                  </div>
+                  <div 
+                    className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center"
+                    onClick={() => onViewChange('algorithms')}
+                  >
                     <GitBranch className="h-4 w-4 mr-2" />
                     <span>算法管理</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onViewChange('models')}>
+                  </div>
+                  <div 
+                    className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center"
+                    onClick={() => onViewChange('models')}
+                  >
                     <Cog className="h-4 w-4 mr-2" />
                     <span>模型管理</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onViewChange('data')}>
+                  </div>
+                  <div 
+                    className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center"
+                    onClick={() => onViewChange('data')}
+                  >
                     <Database className="h-4 w-4 mr-2" />
                     <span>数据管理</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem>
+                  </div>
+                  <div className="border-t border-gray-200 my-1"></div>
+                  <div className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center">
                     <Settings className="h-4 w-4 mr-2" />
                     <span>设置</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => {
-                    console.log('点击关于按钮');
-                    onViewChange('about');
-                  }}>
+                  </div>
+                  <div className="border-t border-gray-200 my-1"></div>
+                  <div 
+                    className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center"
+                    onClick={() => onViewChange('about')}
+                  >
                     <Info className="h-4 w-4 mr-2" />
                     <span>关于</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleSignOut}>
+                  </div>
+                  <div className="border-t border-gray-200 my-1"></div>
+                  <div 
+                    className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center"
+                    onClick={handleSignOut}
+                  >
                     <LogOut className="h-4 w-4 mr-2" />
                     <span>退出登录</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                  </div>
+                </div>
+              </div>
             ) : (
-              <DropdownMenu open={isGuestMenuOpen} onOpenChange={setIsGuestMenuOpen}>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="flex items-center space-x-2"
-                    onMouseEnter={handleGuestMenuEnter}
-                    onMouseLeave={handleGuestMenuLeave}
-                  >
-                    <User className="h-4 w-4" />
-                    <span>访客</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent 
-                  align="end" 
-                  className="w-48"
-                  onMouseEnter={handleGuestMenuEnter}
-                  onMouseLeave={handleGuestMenuLeave}
+              <div className="relative group">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="flex items-center space-x-2"
                 >
-                  <DropdownMenuItem onClick={() => onViewChange('about')}>
+                  <User className="h-4 w-4" />
+                  <span>访客</span>
+                </Button>
+                
+                {/* 访客下拉菜单 */}
+                <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                  <div 
+                    className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center"
+                    onClick={() => onViewChange('about')}
+                  >
                     <Info className="h-4 w-4 mr-2" />
                     <span>关于</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => onViewChange('auth')}>
+                  </div>
+                  <div className="border-t border-gray-200 my-1"></div>
+                  <div 
+                    className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center"
+                    onClick={() => onViewChange('auth')}
+                  >
                     <User className="h-4 w-4 mr-2" />
                     <span>登录</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onViewChange('auth')}>
+                  </div>
+                  <div 
+                    className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center"
+                    onClick={() => onViewChange('auth')}
+                  >
                     <User className="h-4 w-4 mr-2" />
                     <span>注册</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         </div>
