@@ -516,7 +516,9 @@ export const ChatWidget = () => {
                 {messages.map((message) => (
                   <div
                     key={message.id}
-                    className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                    className={`flex items-start gap-4 p-4 rounded-lg my-2 ${
+                      message.role === 'user' ? '' : 'bg-gray-50'
+                    }`}
                   >
                     <div
                       className={`max-w-[80%] min-w-0 p-3 rounded-lg break-words overflow-wrap-anywhere ${
@@ -528,14 +530,8 @@ export const ChatWidget = () => {
                       }`}
                     >
                       <div
-                        className="leading-relaxed markdown-content"
-                        style={{ 
-                          wordBreak: 'break-word', 
-                          overflowWrap: 'break-word'
-                        }}
-                        dangerouslySetInnerHTML={{
-                          __html: renderMarkdown(message.content)
-                        }}
+                        className={`markdown-content w-full ${message.role === 'user' ? 'markdown-content-user' : 'markdown-content-assistant'}`}
+                        dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }}
                       />
                       {message.isStreaming && (
                         <span className="inline-block w-2 h-4 bg-blue-600 animate-pulse ml-1"></span>

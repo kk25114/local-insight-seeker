@@ -13,25 +13,26 @@ import { supabase } from '@/integrations/supabase/client';
 import type { User, Session } from '@supabase/supabase-js';
 
 const Index = () => {
-  const [selectedAnalysis, setSelectedAnalysis] = useState<string>('');
-  const [uploadedData, setUploadedData] = useState<any[]>([]);
+  const [selectedAnalyses, setSelectedAnalyses] = useState<string[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [currentView, setCurrentView] = useState<'landing' | 'auth' | 'analysis' | 'algorithms' | 'models' | 'data' | 'about'>('analysis');
+  const [currentView, setCurrentView] = useState<'landing' | 'auth' | 'analysis' | 'algorithms' | 'models' | 'data' | 'about' | 'tasks'>('analysis');
   const [error, setError] = useState<string | null>(null);
 
-  // 添加调试函数
-  const handleViewChange = (view: 'landing' | 'auth' | 'analysis' | 'algorithms' | 'models' | 'data' | 'about') => {
+  const handleViewChange = (view: 'landing' | 'auth' | 'analysis' | 'algorithms' | 'models' | 'data' | 'about' | 'tasks') => {
     console.log('视图变化从', currentView, '到', view);
     setCurrentView(view);
   };
 
-  // 添加分析选择处理函数
-  const handleAnalysisSelect = (analysis: string) => {
-    console.log('选择分析方法:', analysis);
-    setSelectedAnalysis(analysis);
-    // 确保不会改变视图
+  // 更新分析选择处理函数为多选/单选切换
+  const handleAnalysisToggle = (analysisKey: string) => {
+    console.log('切换分析方法:', analysisKey);
+    setSelectedAnalyses(prev => 
+      prev.includes(analysisKey) 
+        ? prev.filter(key => key !== analysisKey)
+        : [...prev, analysisKey]
+    );
   };
 
   useEffect(() => {
@@ -131,12 +132,12 @@ const Index = () => {
         <div className="min-h-screen flex w-full bg-gray-50">
           <div className="flex-1 flex flex-col">
             <MainHeader 
-              onDataUpload={setUploadedData}
+              onDataUpload={() => {}}
               user={user}
               currentView={currentView}
               onViewChange={handleViewChange}
             />
-            <main className="flex-1 p-6 overflow-auto">
+            <main className="flex-1 overflow-auto p-6">
               <AboutPage onBackToAnalysis={() => handleViewChange('analysis')} />
             </main>
           </div>
@@ -147,7 +148,7 @@ const Index = () => {
   }
 
   // 如果没有用户但试图访问需要认证的页面，跳转到认证页面
-  if (!user && (currentView === 'algorithms' || currentView === 'models' || currentView === 'data')) {
+  if (!user && (currentView === 'algorithms' || currentView === 'models' || currentView === 'data' || currentView === 'tasks')) {
     handleViewChange('auth');
     return null;
   }
@@ -163,13 +164,14 @@ const Index = () => {
         return <ModelManagement user={user!} />;
       case 'data':
         console.log('渲染数据管理组件');
-        return <DataManagement user={user!} onDataSelect={setUploadedData} />;
+        return <DataManagement user={user!} onDataSelect={() => {}} />;
+      case 'tasks':
+        return <div className="p-6">任务记录功能正在开发中...</div>;
       default:
         console.log('渲染工作区组件');
         return (
           <WorkArea 
-            selectedAnalysis={selectedAnalysis}
-            uploadedData={uploadedData}
+            selectedAnalyses={selectedAnalyses}
             user={user}
             onAuthRequired={() => handleViewChange('auth')}
           />
@@ -183,19 +185,19 @@ const Index = () => {
         <div className="flex h-screen w-full bg-gray-50">
           {currentView === 'analysis' && (
             <AnalysisSidebar 
-              selectedAnalysis={selectedAnalysis}
-              onSelectAnalysis={handleAnalysisSelect}
+              selectedAnalyses={selectedAnalyses}
+              onSelectAnalysis={handleAnalysisToggle}
               onLogoClick={() => handleViewChange('analysis')}
             />
           )}
           <div className="flex-1 flex flex-col overflow-hidden">
             <MainHeader 
-              onDataUpload={setUploadedData}
+              onDataUpload={() => {}}
               user={user}
               currentView={currentView}
               onViewChange={handleViewChange}
             />
-            <main className="flex-1 p-6 overflow-y-auto bg-gray-100">
+            <main className="flex-1 overflow-y-auto bg-gray-100 p-6">
               {renderContent()}
             </main>
           </div>

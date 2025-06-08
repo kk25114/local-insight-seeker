@@ -35,11 +35,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { analysisConfig } from '@/config/analysis';
 
 interface AnalysisSidebarProps {
-  selectedAnalysis: string;
-  onSelectAnalysis: (analysis: string) => void;
+  selectedAnalyses: string[];
+  onSelectAnalysis: (analysisKey: string) => void;
   onLogoClick?: () => void;
 }
 
@@ -137,7 +138,7 @@ const defaultAnalysisCategories = [
 ];
 
 export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({ 
-  selectedAnalysis, 
+  selectedAnalyses, 
   onSelectAnalysis,
   onLogoClick
 }) => {
@@ -280,125 +281,95 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
                 <p>未找到匹配的分析方法</p>
               </div>
             ) : (
-              <Accordion
-                type="multiple"
-                defaultValue={[filteredCategories[0]?.label].filter(Boolean)}
-                className="w-full"
-              >
+              <Accordion type="multiple" defaultValue={filteredCategories.map(c => c.label)} className="w-full">
                 {filteredCategories.map((category) => (
-                  <AccordionItem value={category.label} key={category.label}>
-                    <AccordionTrigger className="text-sm font-medium hover:no-underline px-2 py-3 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors">
+                  <AccordionItem value={category.label} key={category.label} className="border-b-0">
+                    <AccordionTrigger className="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-md">
                       {category.label}
                     </AccordionTrigger>
-                    <AccordionContent className="pb-2">
-                      <div className="flex flex-col space-y-1 ml-2">
+                    <AccordionContent className="pt-1 pb-2">
+                      <div className="space-y-1 px-2">
                         {category.items.map((item) => (
                           <div
                             key={item.key}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              console.log('点击分析项:', item.key, item.title);
-                              onSelectAnalysis(item.key);
-                            }}
-                            className={`group flex items-center justify-between p-2 text-sm rounded-lg cursor-pointer transition-colors ${
-                              selectedAnalysis === item.key
-                                ? 'bg-blue-100 text-blue-700 border border-blue-200'
-                                : 'hover:bg-blue-50 hover:text-blue-700'
+                            onClick={() => onSelectAnalysis(item.key)}
+                            className={`group flex items-center justify-between p-2 text-sm rounded-md cursor-pointer transition-colors ${
+                              selectedAnalyses.includes(item.key)
+                                ? 'bg-blue-100 text-blue-700'
+                                : 'text-gray-700 hover:bg-gray-100'
                             }`}
                           >
-                            <div className="flex items-center space-x-2">
-                              <item.icon className="h-4 w-4 flex-shrink-0" />
-                              <span className="truncate">{item.title}</span>
+                            <div className="flex items-center space-x-3">
+                              <Checkbox
+                                id={`checkbox-${item.key}`}
+                                checked={selectedAnalyses.includes(item.key)}
+                                className="h-4 w-4 rounded"
+                              />
+                              <label
+                                htmlFor={`checkbox-${item.key}`}
+                                className="flex items-center space-x-2 cursor-pointer"
+                              >
+                                <item.icon className="h-4 w-4" />
+                                <span>{item.title}</span>
+                              </label>
                             </div>
                             <Popover>
                               <PopoverTrigger asChild>
                                 <Info 
-                                  className="h-4 w-4 text-gray-400 group-hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 cursor-pointer"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                  }}
+                                  className="h-4 w-4 text-gray-400 group-hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                                  onClick={(e) => e.stopPropagation()}
                                 />
                               </PopoverTrigger>
-                              <PopoverContent className="w-96 p-4 shadow-md border border-gray-300 bg-white" side="right" align="start">
+                              <PopoverContent className="w-96 p-4 shadow-lg border-gray-200" side="right" align="start">
                                 {(() => {
                                   const analysisInfo = analysisConfig[item.key as keyof typeof analysisConfig];
-                                  return analysisInfo ? (
+                                  if (!analysisInfo) return null;
+
+                                  const descriptionSections = analysisInfo.description.split('\n\n');
+                                  const exampleSections = analysisInfo.example.split('\n\n');
+                                  const findSection = (sections: string[], title: string) => 
+                                    sections.find(p => p.startsWith(title))?.replace(title, '').trim();
+
+                                  const definition = findSection(descriptionSections, '📖 定义');
+                                  const formula = findSection(descriptionSections, '📐 计算公式');
+                                  const exampleData = findSection(exampleSections, '📊 考试数据举例');
+                                  const scenario = findSection(exampleSections, '💡 应用场景');
+
+                                  return (
                                     <div className="max-h-[500px] overflow-y-auto space-y-4">
-                                      {/* 标题 */}
-                                      <div className="border-b border-gray-200 pb-2">
+                                      <div className="border-b border-gray-200 pb-2 mb-2">
                                         <h3 className="font-bold text-base text-gray-800">{analysisInfo.title}</h3>
                                       </div>
                                       
-                                      {/* 定义 */}
-                                      {(() => {
-                                        const parts = analysisInfo.description.split('\n\n');
-                                        const definitionPart = parts.find(p => p.includes('📖 定义'));
-                                        
-                                        return definitionPart && (
-                                          <div>
-                                            <div className="font-semibold text-sm text-gray-700 mb-2">
-                                              📖 定义
-                                            </div>
-                                            <div className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
-                                              {definitionPart.replace('📖 定义\n', '')}
-                                            </div>
-                                          </div>
-                                        );
-                                      })()}
+                                      {definition && (
+                                        <div>
+                                          <h4 className="font-semibold text-sm text-gray-700 mb-2">📖 定义</h4>
+                                          <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{definition}</p>
+                                        </div>
+                                      )}
                                       
-                                      {/* 计算公式 */}
-                                      {(() => {
-                                        const parts = analysisInfo.description.split('\n\n');
-                                        const formulaPart = parts.find(p => p.includes('📐 计算公式'));
-                                        
-                                        return formulaPart && (
-                                          <div>
-                                            <div className="font-semibold text-sm text-gray-700 mb-2">
-                                              📐 计算公式
-                                            </div>
-                                            <div className="text-sm text-gray-600 leading-relaxed bg-gray-50 p-2 rounded border font-mono whitespace-pre-line">
-                                              {formulaPart.replace('📐 计算公式\n', '')}
-                                            </div>
-                                          </div>
-                                        );
-                                      })()}
-                                      
-                                      {/* 考试数据举例 */}
-                                      {(() => {
-                                        const parts = analysisInfo.example.split('\n\n');
-                                        const examplePart = parts.find(p => p.includes('📊 考试数据举例'));
-                                        
-                                        return examplePart && (
-                                          <div>
-                                            <div className="font-semibold text-sm text-gray-700 mb-2">
-                                              📊 考试数据举例
-                                            </div>
-                                            <div className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
-                                              {examplePart.replace('📊 考试数据举例\n', '')}
-                                            </div>
-                                          </div>
-                                        );
-                                      })()}
-                                      
-                                      {/* 应用场景 */}
-                                      {(() => {
-                                        const parts = analysisInfo.example.split('\n\n');
-                                        const scenarioPart = parts.find(p => p.includes('💡 应用场景'));
-                                        
-                                        return scenarioPart && (
-                                          <div>
-                                            <div className="font-semibold text-sm text-gray-700 mb-2">
-                                              💡 应用场景
-                                            </div>
-                                            <div className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
-                                              {scenarioPart.replace('💡 应用场景\n', '')}
-                                            </div>
-                                          </div>
-                                        );
-                                      })()}
+                                      {formula && (
+                                        <div>
+                                          <h4 className="font-semibold text-sm text-gray-700 mb-2">📐 计算公式</h4>
+                                          <pre className="text-sm text-gray-600 leading-relaxed bg-gray-50 p-3 rounded border font-mono whitespace-pre-line">{formula}</pre>
+                                        </div>
+                                      )}
+
+                                      {exampleData && (
+                                        <div>
+                                          <h4 className="font-semibold text-sm text-gray-700 mb-2">📊 考试数据举例</h4>
+                                          <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{exampleData}</p>
+                                        </div>
+                                      )}
+
+                                      {scenario && (
+                                        <div>
+                                          <h4 className="font-semibold text-sm text-gray-700 mb-2">💡 应用场景</h4>
+                                          <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{scenario}</p>
+                                        </div>
+                                      )}
                                     </div>
-                                  ) : null;
+                                  );
                                 })()}
                               </PopoverContent>
                             </Popover>
@@ -431,7 +402,7 @@ export const AnalysisSidebar: React.FC<AnalysisSidebarProps> = ({
                     onSelectAnalysis(item.key);
                   }}
                   className={`w-full h-10 p-0 rounded-lg transition-colors ${
-                      selectedAnalysis === item.key
+                      selectedAnalyses.includes(item.key)
                       ? 'bg-blue-100 text-blue-700 border border-blue-200'
                       : 'hover:bg-blue-50 hover:text-blue-700'
                     }`}

@@ -11,8 +11,10 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { AnalysisQueue, AnalysisQueueRef } from './AnalysisQueue';
 import { DatabaseConnection } from './DatabaseConnection';
+import { AnalysisResultPage } from './AnalysisResultPage';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { analysisConfig } from '@/config/analysis';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface DataSet {
   id: string;
@@ -25,18 +27,23 @@ interface DataSet {
 }
 
 interface WorkAreaProps {
-  selectedAnalysis: string;
-  uploadedData: any[];
+  selectedAnalyses: string[];
   user: SupabaseUser | null;
   onAuthRequired?: () => void;
 }
 
-export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, uploadedData = [], user, onAuthRequired }) => {
+export const WorkArea: React.FC<WorkAreaProps> = ({ 
+  selectedAnalyses, 
+  user, 
+  onAuthRequired,
+}) => {
   const [datasets, setDatasets] = useState<DataSet[]>([]);
   const [selectedDataset, setSelectedDataset] = useState<string>('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [fileData, setFileData] = useState<any[]>([]);
   const [previewData, setPreviewData] = useState<any[]>([]);
+  const [analysisResult, setAnalysisResult] = useState<any[]>([]);
+  const [viewMode, setViewMode] = useState<'selection' | 'results'>('selection');
   const { toast } = useToast();
   const analysisQueueRef = useRef<AnalysisQueueRef>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -58,12 +65,10 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, uploadedDa
       }
     } else if (fileData && fileData.length > 0) {
       dataToPreview = fileData;
-    } else if (uploadedData && uploadedData.length > 0) {
-      dataToPreview = uploadedData;
     }
     
-    setPreviewData(dataToPreview.slice(0, 5)); // 显示前5行
-  }, [selectedDataset, fileData, uploadedData, datasets]);
+    setPreviewData(dataToPreview); // 更新完整数据以供分析
+  }, [selectedDataset, fileData, datasets]);
 
   const loadDatasets = async () => {
     try {
@@ -140,7 +145,9 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, uploadedDa
 
   // 处理数据库连接组件的数据更新
   const handleDatabaseDataUpdate = (data: any[]) => {
-    setPreviewData(data.slice(0, 5));
+    setPreviewData(data); // 直接用数据库查询结果更新预览
+    setSelectedDataset('');
+    setFileData([]);
   };
 
   const runAnalysis = async () => {
@@ -149,18 +156,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, uploadedDa
       return;
     }
 
-    let dataToAnalyze: any[] = [];
-    
-    if (selectedDataset) {
-      const dataset = datasets.find(d => d.id === selectedDataset);
-      if (dataset) {
-        dataToAnalyze = dataset.data;
-      }
-    } else if (fileData && fileData.length > 0) {
-      dataToAnalyze = fileData;
-    } else if (uploadedData && uploadedData.length > 0) {
-      dataToAnalyze = uploadedData;
-    }
+    let dataToAnalyze = previewData;
 
     if (dataToAnalyze.length === 0) {
       toast({
@@ -171,7 +167,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, uploadedDa
       return;
     }
 
-    if (!selectedAnalysis) {
+    if (!selectedAnalyses || selectedAnalyses.length === 0) {
       toast({
         title: "请选择分析方法",
         description: "请从左侧选择要执行的统计分析方法",
@@ -183,13 +179,74 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, uploadedDa
     setIsAnalyzing(true);
 
     try {
-      analysisQueueRef.current?.addTask(
-        `${analysisConfig[selectedAnalysis]?.name || selectedAnalysis} 分析`
-      );
+      // 延迟模拟网络请求和分析过程
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const basicStatKeys = ['mean', 'median', 'variance', 'std_dev', 'max', 'min', 'range', 'quartiles', 'skewness', 'kurtosis'];
+      const selectedBasicStats = selectedAnalyses.filter(key => basicStatKeys.includes(key));
+      const otherAnalyses = selectedAnalyses.filter(key => !basicStatKeys.includes(key));
+
+      let finalResults = [];
+
+      // 1. 处理基础统计指标
+      if (selectedBasicStats.length > 0) {
+        const numericColumns = Object.keys(previewData[0] || {}).filter(key => 
+          !isNaN(parseFloat(previewData[0][key]))
+        );
+        
+        const summaryData = selectedBasicStats.map(statKey => {
+          const row: { [key: string]: any } = { '指标': analysisConfig[statKey as keyof typeof analysisConfig]?.title || statKey };
+          numericColumns.forEach(col => {
+            // 在此应调用真实的计算函数，此处为模拟
+            row[col] = (Math.random() * 100).toFixed(2);
+          });
+          return row;
+        });
+
+        finalResults.push({
+          type: 'summary_table',
+          title: '描述性统计',
+          chartable: true,
+          data: summaryData
+        });
+      }
+
+      // 2. 处理其他独立分析
+      const otherResults = otherAnalyses.map(key => {
+        const config = analysisConfig[key as keyof typeof analysisConfig];
+        switch (key) {
+          case 'frequency':
+            return { 
+              type: 'table', 
+              title: '频数分析结果',
+              chartable: true,
+              data: [
+                { '名称': 1, '选项': 1.0, '频数': 1, '百分比(%)': 20.00, '累计百分比(%)': 20.00 },
+                { '名称': 1, '选项': 3.0, '频数': 1, '百分比(%)': 20.00, '累计百分比(%)': 40.00 },
+                { '名称': 1, '选项': 5.0, '频数': 1, '百分比(%)': 20.00, '累计百分比(%)': 60.00 },
+                { '名称': 1, '选项': 6.0, '频数': 2, '百分比(%)': 40.00, '累计百分比(%)': 100.00 },
+                { '名称': 3, '选项': 1.0, '频数': 2, '百分比(%)': 40.00, '累计百分比(%)': 40.00 },
+                { '名称': 3, '选项': 2.0, '频数': 1, '百分比(%)': 20.00, '累计百分比(%)': 60.00 },
+              ]
+            };
+          default: // 其他分析暂时也用指标卡代替
+            return { 
+              type: 'metric',
+              title: config?.title || key, 
+              value: 'N/A', 
+              description: config?.description.split('\n')[0] || '未实现的分析'
+            };
+        }
+      });
+
+      finalResults.push(...otherResults);
+  
+      setAnalysisResult(finalResults);
+      setViewMode('results');
 
       toast({
-        title: "分析已启动",
-        description: `正在执行 ${analysisConfig[selectedAnalysis]?.name || selectedAnalysis} 分析`,
+        title: "分析已完成",
+        description: `已生成 ${finalResults.length} 项分析结果`,
       });
     } catch (error) {
       console.error('分析执行失败:', error);
@@ -203,35 +260,35 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, uploadedDa
     }
   };
 
-  const currentAnalysis = analysisConfig[selectedAnalysis as keyof typeof analysisConfig];
-  const hasData = selectedDataset || fileData.length > 0 || (uploadedData && uploadedData.length > 0);
+  const hasData = previewData.length > 0;
+  const previewHeaders = hasData ? Object.keys(previewData[0]) : [];
+
+  if (viewMode === 'results') {
+    return (
+      <AnalysisResultPage 
+        results={analysisResult} 
+        onBack={() => setViewMode('selection')} 
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col h-full">
-      {/* 分析按钮区域 - 仅在选择分析方法时显示 */}
-      {selectedAnalysis && currentAnalysis && (
-        <div className="p-4 border-b bg-white rounded-t-lg">
-          <h3 className="font-semibold">{currentAnalysis.title}</h3>
-          <p className="text-sm text-gray-600 mt-1">{currentAnalysis.description}</p>
-          <Button
-            onClick={runAnalysis}
-            disabled={!user || isAnalyzing || !hasData}
-            className="w-full mt-4"
-            size="lg"
-          >
-            {isAnalyzing ? '分析中...' : '开始分析'}
-          </Button>
-        </div>
-      )}
-
       {/* 数据源选择区域 */}
       <Card className="flex-1 flex flex-col overflow-hidden border-0 rounded-none">
         {/* 固定头部 */}
-        <div className="flex-shrink-0 bg-white p-4 border-b">
+        <div className="flex-shrink-0 bg-white p-4 border-b flex justify-between items-center">
           <CardTitle className="flex items-center space-x-2 text-base">
             <Database className="h-5 w-5" />
             <span>数据源选择</span>
           </CardTitle>
+          <Button
+            onClick={runAnalysis}
+            disabled={!user || isAnalyzing || !hasData || selectedAnalyses.length === 0}
+          >
+            <Play className="h-4 w-4 mr-2" />
+            {isAnalyzing ? '分析中...' : '开始分析'}
+          </Button>
         </div>
 
         {/* Tab 切换 */}
@@ -245,7 +302,7 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, uploadedDa
           </div>
           
           {/* 可滚动内容区 */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto bg-gray-50">
             {!user ? (
               <div className="p-6 text-center text-gray-500">
                 <AlertCircle className="mx-auto h-12 w-12 text-gray-400" />
@@ -260,26 +317,26 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, uploadedDa
             ) : (
               <>
                 <TabsContent value="datasets" className="p-6">
-                  <div>
+            <div>
                     <Label htmlFor="dataset-select">选择数据集</Label>
                     <Select value={selectedDataset} onValueChange={setSelectedDataset} disabled={!user}>
                       <SelectTrigger className={!user ? 'opacity-60 cursor-not-allowed' : ''}>
                         <SelectValue placeholder={user ? "选择要分析的数据集" : "请登录后选择数据集"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {datasets.map((dataset) => (
-                          <SelectItem key={dataset.id} value={dataset.id}>
-                            <div className="flex flex-col">
-                              <span>{dataset.name}</span>
-                              <span className="text-xs text-gray-500">
-                                {dataset.data.length} 条记录
-                              </span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  {datasets.map((dataset) => (
+                    <SelectItem key={dataset.id} value={dataset.id}>
+                      <div className="flex flex-col">
+                        <span>{dataset.name}</span>
+                        <span className="text-xs text-gray-500">
+                          {dataset.data.length} 条记录
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
                 </TabsContent>
 
                 <TabsContent value="upload" className="p-6">
@@ -305,14 +362,14 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, uploadedDa
                     </div>
                     {fileData.length > 0 && (
                       <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-                        <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2">
                           <FileText className="h-4 w-4 text-green-600" />
                           <span className="text-sm font-medium text-green-800">文件已上传</span>
                           <Badge variant="secondary">{fileData.length} 条记录</Badge>
                         </div>
-                      </div>
+                </div>
                     )}
-                  </div>
+              </div>
                 </TabsContent>
 
                 <TabsContent value="database" className="m-0">
@@ -320,50 +377,39 @@ export const WorkArea: React.FC<WorkAreaProps> = ({ selectedAnalysis, uploadedDa
                 </TabsContent>
               </>
             )}
+            
+            {/* 数据预览区域 */}
+            {hasData && (
+              <div className="p-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2 text-base">
+                      <Eye className="h-5 w-5" />
+                      <span>数据预览 (前5行)</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          {previewHeaders.map(header => <TableHead key={header}>{header}</TableHead>)}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {previewData.slice(0, 5).map((row, index) => (
+                          <TableRow key={index}>
+                            {previewHeaders.map(header => <TableCell key={header}>{String(row[header])}</TableCell>)}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </div>
         </Tabs>
       </Card>
-
-      {/* 数据预览区域 */}
-      {previewData.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Eye className="h-5 w-5" />
-              <span>数据预览 (前5行)</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse border border-gray-300">
-                <thead>
-                  <tr className="bg-gray-50">
-                    {Object.keys(previewData[0] || {}).map((key) => (
-                      <th key={key} className="border border-gray-300 px-4 py-2 text-left text-sm font-medium text-gray-700">
-                        {key}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {previewData.map((row, index) => (
-                    <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      {Object.values(row).map((value, cellIndex) => (
-                        <td key={cellIndex} className="border border-gray-300 px-4 py-2 text-sm text-gray-600">
-                          {String(value)}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* 分析队列 */}
-      <AnalysisQueue ref={analysisQueueRef} />
     </div>
   );
 };

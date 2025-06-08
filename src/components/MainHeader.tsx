@@ -11,8 +11,8 @@ import type { User as SupabaseUser } from '@supabase/supabase-js';
 interface MainHeaderProps {
   onDataUpload: (data: any[]) => void;
   user: SupabaseUser | null;
-  currentView: 'landing' | 'auth' | 'analysis' | 'algorithms' | 'models' | 'data' | 'about';
-  onViewChange: (view: 'landing' | 'auth' | 'analysis' | 'algorithms' | 'models' | 'data' | 'about') => void;
+  currentView: 'landing' | 'auth' | 'analysis' | 'algorithms' | 'models' | 'data' | 'about' | 'tasks';
+  onViewChange: (view: 'landing' | 'auth' | 'analysis' | 'algorithms' | 'models' | 'data' | 'about' | 'tasks') => void;
 }
 
 export const MainHeader: React.FC<MainHeaderProps> = ({ onDataUpload, user, currentView, onViewChange }) => {
@@ -143,7 +143,15 @@ export const MainHeader: React.FC<MainHeaderProps> = ({ onDataUpload, user, curr
                 <Database className="h-4 w-4" />
                 <span>我的数据</span>
               </Button>
-              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onViewChange('tasks')}
+                className="flex items-center space-x-2"
+              >
+                <FileText className="h-4 w-4" />
+                <span>任务记录</span>
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
