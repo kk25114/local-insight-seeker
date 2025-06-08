@@ -79,11 +79,15 @@ export const AuthPage = () => {
 
     setIsLoading(true);
     try {
+      const redirectURL = import.meta.env.MODE === 'production'
+        ? 'https://www.lanchel.top/'
+        : `${window.location.origin}/`;
+
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/`
+          emailRedirectTo: redirectURL
         }
       });
 
